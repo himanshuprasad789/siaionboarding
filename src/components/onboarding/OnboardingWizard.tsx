@@ -6,11 +6,12 @@ import { StepFOE } from './StepFOE';
 import { useOnboarding, OnboardingProvider } from '@/contexts/OnboardingContext';
 import { FileText } from 'lucide-react';
 
+// Updated steps with benefit-focused labels
 const STEPS = [
-  { number: 1, label: 'Essentials' },
-  { number: 2, label: 'Evidence' },
-  { number: 3, label: 'Niche' },
-  { number: 4, label: 'FOE' },
+  { number: 1, label: 'Step 1', benefit: 'Analyzing Profile' },
+  { number: 2, label: 'Step 2', benefit: 'Calculating Score' },
+  { number: 3, label: 'Step 3', benefit: 'Defining Impact' },
+  { number: 4, label: 'Step 4', benefit: 'Unlock Opportunities' },
 ];
 
 function WizardContent() {
