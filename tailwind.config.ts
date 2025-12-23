@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        display: ['Playfair Display', 'serif'],
+        sans: ['DM Sans', 'system-ui', 'sans-serif'],
+        display: ['Fraunces', 'Georgia', 'serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -88,11 +88,11 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        'soft': 'var(--shadow-sm)',
-        'medium': 'var(--shadow-md)',
-        'large': 'var(--shadow-lg)',
-        'xl': 'var(--shadow-xl)',
-        'glow': 'var(--shadow-glow)',
+        'soft': '0 2px 8px 0 hsl(var(--foreground) / 0.04)',
+        'elevated': '0 1px 2px 0 hsl(var(--foreground) / 0.03), 0 4px 12px 0 hsl(var(--foreground) / 0.06)',
+        'card': '0 1px 3px 0 hsl(var(--foreground) / 0.02), 0 6px 16px 0 hsl(var(--foreground) / 0.04)',
+        'brand': '0 4px 14px 0 hsl(var(--primary) / 0.15)',
+        'glow': '0 0 30px hsl(var(--primary) / 0.2)',
       },
       keyframes: {
         "accordion-down": {
@@ -108,7 +108,7 @@ export default {
           to: { opacity: "1" },
         },
         "slide-up": {
-          from: { opacity: "0", transform: "translateY(20px)" },
+          from: { opacity: "0", transform: "translateY(16px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
       },
