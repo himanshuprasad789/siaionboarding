@@ -30,7 +30,7 @@ export default {
   				'serif'
   			],
   			serif: [
-  				'Cormorant Garamond',
+  				'Crimson Pro',
   				'ui-serif',
   				'Georgia',
   				'Cambria',
@@ -39,7 +39,7 @@ export default {
   				'serif'
   			],
   			mono: [
-  				'JetBrains Mono',
+  				'Roboto Mono',
   				'ui-monospace',
   				'SFMono-Regular',
   				'Menlo',
