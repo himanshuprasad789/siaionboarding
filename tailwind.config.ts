@@ -15,14 +15,17 @@ export default {
   	extend: {
   		fontFamily: {
   			sans: [
-  				'Inter',
+  				'Poppins',
   				'ui-sans-serif',
   				'system-ui',
-  				'sans-serif',
-  				'Apple Color Emoji',
-  				'Segoe UI Emoji',
-  				'Segoe UI Symbol',
-  				'Noto Color Emoji'
+  				'-apple-system',
+  				'BlinkMacSystemFont',
+  				'Segoe UI',
+  				'Roboto',
+  				'Helvetica Neue',
+  				'Arial',
+  				'Noto Sans',
+  				'sans-serif'
   			],
   			display: [
   				'Fraunces',
@@ -30,7 +33,7 @@ export default {
   				'serif'
   			],
   			serif: [
-  				'Crimson Pro',
+  				'Merriweather',
   				'ui-serif',
   				'Georgia',
   				'Cambria',
@@ -39,7 +42,7 @@ export default {
   				'serif'
   			],
   			mono: [
-  				'Roboto Mono',
+  				'JetBrains Mono',
   				'ui-monospace',
   				'SFMono-Regular',
   				'Menlo',
@@ -125,7 +128,14 @@ export default {
   			elevated: '0 1px 2px 0 hsl(var(--foreground) / 0.03), 0 4px 12px 0 hsl(var(--foreground) / 0.06)',
   			card: '0 1px 3px 0 hsl(var(--foreground) / 0.02), 0 6px 16px 0 hsl(var(--foreground) / 0.04)',
   			brand: '0 4px 14px 0 hsl(var(--primary) / 0.15)',
-  			glow: '0 0 30px hsl(var(--primary) / 0.2)'
+  			glow: '0 0 30px hsl(var(--primary) / 0.2)',
+  			'2xs': 'var(--shadow-2xs)',
+  			xs: 'var(--shadow-xs)',
+  			sm: 'var(--shadow-sm)',
+  			md: 'var(--shadow-md)',
+  			lg: 'var(--shadow-lg)',
+  			xl: 'var(--shadow-xl)',
+  			'2xl': 'var(--shadow-2xl)'
   		},
   		keyframes: {
   			'accordion-down': {
