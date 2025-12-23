@@ -1,3 +1,6 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -65,6 +68,9 @@
     --sidebar-accent-foreground: 220 25% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 234 62% 50%;
+    --font-sans: Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+    --font-serif: "Cormorant Garamond", ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
   }
 
   .dark {
@@ -104,6 +110,9 @@
     --sidebar-accent-foreground: 0 0% 98%;
     --sidebar-border: 220 20% 18%;
     --sidebar-ring: 234 72% 62%;
+    --font-sans: Inter, ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+    --font-serif: "Cormorant Garamond", ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
   }
 }
 
