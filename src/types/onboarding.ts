@@ -7,12 +7,20 @@ export interface EssentialsData {
   resumeFile: File | null;
 }
 
+export interface ActivityTicket {
+  id: string;
+  title: string;
+  source: string;
+  criteriaId: string;
+}
+
 export interface CriteriaItem {
   id: string;
   label: string;
   description: string;
   hasEvidence: boolean;
   evidenceDescription: string;
+  tickets: ActivityTicket[];
 }
 
 export interface NicheData {
@@ -71,16 +79,109 @@ export interface Opportunity {
 }
 
 export const INITIAL_CRITERIA: CriteriaItem[] = [
-  { id: 'authorship', label: 'Authorship', description: 'Published scholarly articles in professional journals', hasEvidence: false, evidenceDescription: '' },
-  { id: 'awards', label: 'Awards', description: 'Nationally or internationally recognized prizes or awards', hasEvidence: false, evidenceDescription: '' },
-  { id: 'membership', label: 'Membership', description: 'Membership in associations requiring outstanding achievements', hasEvidence: false, evidenceDescription: '' },
-  { id: 'judging', label: 'Judging', description: 'Participation as a judge of the work of others', hasEvidence: false, evidenceDescription: '' },
-  { id: 'original-contributions', label: 'Original Contributions', description: 'Original scientific, scholarly, or business contributions', hasEvidence: false, evidenceDescription: '' },
-  { id: 'press', label: 'Press/Media', description: 'Published material in professional publications or major media', hasEvidence: false, evidenceDescription: '' },
-  { id: 'exhibitions', label: 'Exhibitions', description: 'Display of work at artistic exhibitions or showcases', hasEvidence: false, evidenceDescription: '' },
-  { id: 'leading-role', label: 'Leading Role', description: 'Leading or critical role in distinguished organizations', hasEvidence: false, evidenceDescription: '' },
-  { id: 'high-salary', label: 'High Salary', description: 'High salary or remuneration compared to others in the field', hasEvidence: false, evidenceDescription: '' },
-  { id: 'commercial-success', label: 'Commercial Success', description: 'Commercial successes in the performing arts', hasEvidence: false, evidenceDescription: '' },
+  { 
+    id: 'authorship', 
+    label: 'Authorship', 
+    description: 'Published scholarly articles in professional journals', 
+    hasEvidence: false, 
+    evidenceDescription: '',
+    tickets: [
+      { id: 'auth-1', title: 'Technical blog posts on React architecture patterns', source: 'Resume', criteriaId: 'authorship' },
+      { id: 'auth-2', title: 'Documentation for open-source component libraries', source: 'Profile', criteriaId: 'authorship' },
+    ]
+  },
+  { 
+    id: 'awards', 
+    label: 'Awards', 
+    description: 'Nationally or internationally recognized prizes or awards', 
+    hasEvidence: false, 
+    evidenceDescription: '',
+    tickets: [
+      { id: 'award-1', title: 'Best Innovation Award - Invesco Hackathon 2023', source: 'Resume', criteriaId: 'awards' },
+    ]
+  },
+  { 
+    id: 'membership', 
+    label: 'Membership', 
+    description: 'Membership in associations requiring outstanding achievements', 
+    hasEvidence: false, 
+    evidenceDescription: '',
+    tickets: [
+      { id: 'mem-1', title: 'IEEE Computer Society Professional Member', source: 'Profile', criteriaId: 'membership' },
+    ]
+  },
+  { 
+    id: 'judging', 
+    label: 'Judging', 
+    description: 'Participation as a judge of the work of others', 
+    hasEvidence: false, 
+    evidenceDescription: '',
+    tickets: [
+      { id: 'judge-1', title: 'Code review lead for 25-member development team', source: 'Resume', criteriaId: 'judging' },
+      { id: 'judge-2', title: 'Technical interview panelist for senior developers', source: 'Profile', criteriaId: 'judging' },
+    ]
+  },
+  { 
+    id: 'original-contributions', 
+    label: 'Original Contributions', 
+    description: 'Original scientific, scholarly, or business contributions', 
+    hasEvidence: false, 
+    evidenceDescription: '',
+    tickets: [
+      { id: 'orig-1', title: 'Scalable frontend architecture for Vision app at Invesco', source: 'Resume', criteriaId: 'original-contributions' },
+      { id: 'orig-2', title: 'Custom middleware solution for real-time inventory at Macy\'s', source: 'Resume', criteriaId: 'original-contributions' },
+      { id: 'orig-3', title: 'Security patterns framework at Tenable', source: 'Resume', criteriaId: 'original-contributions' },
+    ]
+  },
+  { 
+    id: 'press', 
+    label: 'Press/Media', 
+    description: 'Published material in professional publications or major media', 
+    hasEvidence: false, 
+    evidenceDescription: '',
+    tickets: []
+  },
+  { 
+    id: 'exhibitions', 
+    label: 'Exhibitions', 
+    description: 'Display of work at artistic exhibitions or showcases', 
+    hasEvidence: false, 
+    evidenceDescription: '',
+    tickets: []
+  },
+  { 
+    id: 'leading-role', 
+    label: 'Leading Role', 
+    description: 'Leading or critical role in distinguished organizations', 
+    hasEvidence: false, 
+    evidenceDescription: '',
+    tickets: [
+      { id: 'lead-1', title: 'Tech Lead managing 25+ developers at Photon Infotech', source: 'Resume', criteriaId: 'leading-role' },
+      { id: 'lead-2', title: 'Frontend Architecture Lead at Invesco', source: 'Resume', criteriaId: 'leading-role' },
+      { id: 'lead-3', title: 'Senior Developer leading security initiatives at Tenable', source: 'Resume', criteriaId: 'leading-role' },
+    ]
+  },
+  { 
+    id: 'high-salary', 
+    label: 'High Salary', 
+    description: 'High salary or remuneration compared to others in the field', 
+    hasEvidence: false, 
+    evidenceDescription: '',
+    tickets: [
+      { id: 'sal-1', title: '16+ years experience commanding top-tier compensation', source: 'Profile', criteriaId: 'high-salary' },
+    ]
+  },
+  { 
+    id: 'commercial-success', 
+    label: 'Commercial Success', 
+    description: 'Commercial successes in the performing arts', 
+    hasEvidence: false, 
+    evidenceDescription: '',
+    tickets: [
+      { id: 'comm-1', title: '$120K annual savings through tool optimization at Tenable', source: 'Resume', criteriaId: 'commercial-success' },
+      { id: 'comm-2', title: 'BOPIS feature driving increased sales at Macy\'s', source: 'Resume', criteriaId: 'commercial-success' },
+    ]
+  },
 ];
 
 export const MOCK_FIELDS: FieldOfEndeavor[] = [
