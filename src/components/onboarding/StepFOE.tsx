@@ -135,7 +135,7 @@ export function StepFOE() {
       </motion.div>
 
       <div className="flex gap-3">
-        <Button variant="outline" size="lg" className="flex-1 h-12" onClick={() => setCurrentStep(3)}>
+        <Button variant="outline" size="lg" className="flex-1 h-12" onClick={() => setCurrentStep(4)}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
         </Button>

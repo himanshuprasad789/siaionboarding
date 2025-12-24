@@ -3,6 +3,7 @@ import { Stepper } from './Stepper';
 import { StepEssentials } from './StepEssentials';
 import { StepEvidence } from './StepEvidence';
 import { StepNiche } from './StepNiche';
+import { StepSIAI } from './StepSIAI';
 import { StepFOE } from './StepFOE';
 import { useOnboarding, OnboardingProvider } from '@/contexts/OnboardingContext';
 
@@ -10,7 +11,8 @@ const STEPS = [
   { number: 1, label: 'Profile', benefit: 'Identity' },
   { number: 2, label: 'Evidence', benefit: 'Strengths' },
   { number: 3, label: 'Niche', benefit: 'Focus' },
-  { number: 4, label: 'Fields', benefit: 'Opportunities' },
+  { number: 4, label: 'SIAI', benefit: 'Titles' },
+  { number: 5, label: 'Fields', benefit: 'Opportunities' },
 ];
 
 const pageVariants = {
@@ -48,7 +50,8 @@ function WizardContent() {
             {currentStep === 1 && <StepEssentials />}
             {currentStep === 2 && <StepEvidence />}
             {currentStep === 3 && <StepNiche />}
-            {currentStep === 4 && <StepFOE />}
+            {currentStep === 4 && <StepSIAI />}
+            {currentStep === 5 && <StepFOE />}
           </motion.div>
         </AnimatePresence>
       </main>

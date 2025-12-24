@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { OnboardingData, EssentialsData, CriteriaItem, NicheData, INITIAL_CRITERIA } from '@/types/onboarding';
+import { OnboardingData, EssentialsData, CriteriaItem, NicheData, SIAIData, GeneratedTitles, INITIAL_CRITERIA } from '@/types/onboarding';
 
 interface OnboardingContextType {
   data: OnboardingData;
@@ -8,6 +8,8 @@ interface OnboardingContextType {
   updateEssentials: (essentials: Partial<EssentialsData>) => void;
   updateCriteria: (criteria: CriteriaItem[]) => void;
   updateNiche: (niche: Partial<NicheData>) => void;
+  updateSIAI: (siai: Partial<SIAIData>) => void;
+  updateGeneratedTitles: (titles: GeneratedTitles) => void;
   updateSelectedFields: (fields: string[]) => void;
   isComplete: boolean;
   setIsComplete: (complete: boolean) => void;
@@ -28,6 +30,29 @@ const defaultNiche: NicheData = {
   criticalChallenges: '',
 };
 
+const defaultSIAI: SIAIData = {
+  fieldsIndustries: '',
+  endApplications: '',
+  knowledgeAreas: '',
+  passionAreas: '',
+  workAspects: '',
+  specializedSkills: '',
+  skillVariations: '',
+  industryGaps: '',
+  fieldSizes: '',
+  workingSolutions: '',
+  notWorkingWell: '',
+  expertDemonstration: '',
+  uniqueSkills: '',
+  impactfulProjects: '',
+  biggestChallenges: '',
+};
+
+const defaultGeneratedTitles: GeneratedTitles = {
+  paperTitles: [],
+  pressReleaseTitles: [],
+};
+
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
@@ -37,6 +62,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     essentials: defaultEssentials,
     criteria: INITIAL_CRITERIA,
     niche: defaultNiche,
+    siai: defaultSIAI,
+    generatedTitles: defaultGeneratedTitles,
     selectedFields: [],
   });
 
@@ -58,6 +85,17 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const updateSIAI = (siai: Partial<SIAIData>) => {
+    setData(prev => ({
+      ...prev,
+      siai: { ...prev.siai, ...siai },
+    }));
+  };
+
+  const updateGeneratedTitles = (titles: GeneratedTitles) => {
+    setData(prev => ({ ...prev, generatedTitles: titles }));
+  };
+
   const updateSelectedFields = (fields: string[]) => {
     setData(prev => ({ ...prev, selectedFields: fields }));
   };
@@ -71,6 +109,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         updateEssentials,
         updateCriteria,
         updateNiche,
+        updateSIAI,
+        updateGeneratedTitles,
         updateSelectedFields,
         isComplete,
         setIsComplete,
