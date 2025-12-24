@@ -1,3 +1,4 @@
+// Onboarding Context - manages wizard state
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { OnboardingData, EssentialsData, CriteriaItem, NicheData, SIAIData, GeneratedTitles, INITIAL_CRITERIA } from '@/types/onboarding';
 
