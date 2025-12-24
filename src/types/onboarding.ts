@@ -21,6 +21,29 @@ export interface NicheData {
   criticalChallenges: string;
 }
 
+export interface SIAIData {
+  fieldsIndustries: string;
+  endApplications: string;
+  knowledgeAreas: string;
+  passionAreas: string;
+  workAspects: string;
+  specializedSkills: string;
+  skillVariations: string;
+  industryGaps: string;
+  fieldSizes: string;
+  workingSolutions: string;
+  notWorkingWell: string;
+  expertDemonstration: string;
+  uniqueSkills: string;
+  impactfulProjects: string;
+  biggestChallenges: string;
+}
+
+export interface GeneratedTitles {
+  paperTitles: string[];
+  pressReleaseTitles: string[];
+}
+
 export interface FieldOfEndeavor {
   id: string;
   name: string;
@@ -32,6 +55,8 @@ export interface OnboardingData {
   essentials: EssentialsData;
   criteria: CriteriaItem[];
   niche: NicheData;
+  siai: SIAIData;
+  generatedTitles: GeneratedTitles;
   selectedFields: string[];
 }
 
