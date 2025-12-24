@@ -1,9 +1,9 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useOnboarding } from '@/contexts/OnboardingContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { CriteriaItem } from '@/types/onboarding';
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { CriteriaItem, ActivityTicket } from '@/types/onboarding';
+import { ArrowRight, ArrowLeft, FileText, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const container = {
@@ -18,6 +18,32 @@ const item = {
   hidden: { opacity: 0, y: 10 },
   show: { opacity: 1, y: 0 },
 };
+
+function TicketBadge({ ticket, onRemove }: { ticket: ActivityTicket; onRemove: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className="flex items-center gap-2 px-2.5 py-1.5 bg-muted rounded-lg text-xs group"
+    >
+      <FileText className="w-3 h-3 text-muted-foreground shrink-0" />
+      <span className="text-foreground truncate max-w-[180px]">{ticket.title}</span>
+      <span className="text-muted-foreground text-[10px] px-1.5 py-0.5 bg-background/50 rounded">
+        {ticket.source}
+      </span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-destructive/10 rounded"
+      >
+        <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+      </button>
+    </motion.div>
+  );
+}
 
 export function StepEvidence() {
   const { data, updateCriteria, setCurrentStep } = useOnboarding();
@@ -36,7 +62,17 @@ export function StepEvidence() {
     updateCriteria(updated);
   };
 
+  const removeTicket = (criteriaId: string, ticketId: string) => {
+    const updated = data.criteria.map((c) =>
+      c.id === criteriaId
+        ? { ...c, tickets: c.tickets.filter((t) => t.id !== ticketId) }
+        : c
+    );
+    updateCriteria(updated);
+  };
+
   const evidenceCount = data.criteria.filter((c) => c.hasEvidence).length;
+  const totalTickets = data.criteria.reduce((acc, c) => acc + c.tickets.length, 0);
 
   return (
     <div className="space-y-10">
@@ -47,9 +83,15 @@ export function StepEvidence() {
         <p className="text-muted-foreground">
           Select the criteria where you have existing proof
         </p>
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-sm font-medium">
-          <span className="text-foreground">{evidenceCount}</span>
-          <span className="text-muted-foreground">of 10 selected</span>
+        <div className="flex items-center justify-center gap-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted text-sm font-medium">
+            <span className="text-foreground">{evidenceCount}</span>
+            <span className="text-muted-foreground">of 10 selected</span>
+          </div>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-sm font-medium">
+            <FileText className="w-3.5 h-3.5 text-primary" />
+            <span className="text-primary">{totalTickets} activities found</span>
+          </div>
         </div>
       </div>
 
@@ -84,9 +126,36 @@ export function StepEvidence() {
             )}
 
             <div className="space-y-1">
-              <h4 className="font-medium text-foreground text-sm">{criteria.label}</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-foreground text-sm">{criteria.label}</h4>
+                {criteria.tickets.length > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
+                    {criteria.tickets.length} {criteria.tickets.length === 1 ? 'activity' : 'activities'}
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground leading-relaxed">{criteria.description}</p>
             </div>
+
+            {/* Activity Tickets */}
+            {criteria.tickets.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-3 space-y-1.5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <AnimatePresence>
+                  {criteria.tickets.map((ticket) => (
+                    <TicketBadge
+                      key={ticket.id}
+                      ticket={ticket}
+                      onRemove={() => removeTicket(criteria.id, ticket.id)}
+                    />
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            )}
 
             {criteria.hasEvidence && (
               <motion.div
@@ -97,7 +166,7 @@ export function StepEvidence() {
                 onClick={(e) => e.stopPropagation()}
               >
                 <Textarea
-                  placeholder="Briefly describe your evidence..."
+                  placeholder="Add additional context..."
                   value={criteria.evidenceDescription}
                   onChange={(e) => updateDescription(criteria.id, e.target.value)}
                   className="text-sm min-h-[60px] resize-none"
