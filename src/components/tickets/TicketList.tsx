@@ -1,8 +1,7 @@
-import { Clock, AlertCircle, CheckCircle2, User } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { DataTable, DataTableColumn, StatusBadge, TypeBadge } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
 import { Ticket, getWorkflowSteps } from '@/data/mockWorkflowData';
-import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface TicketListProps {
   tickets: Ticket[];
@@ -10,47 +9,105 @@ interface TicketListProps {
 }
 
 export function TicketList({ tickets, onTicketClick }: TicketListProps) {
-  const getStatusIcon = (status: Ticket['status']) => {
+  const getStatusType = (status: Ticket['status']): 'done' | 'in_progress' | 'waiting' | 'pending' => {
     switch (status) {
-      case 'waiting_client':
-        return <User className="w-4 h-4" />;
-      case 'waiting_team':
-        return <Clock className="w-4 h-4" />;
-      case 'in_progress':
-        return <AlertCircle className="w-4 h-4" />;
       case 'completed':
-        return <CheckCircle2 className="w-4 h-4" />;
+        return 'done';
+      case 'in_progress':
+        return 'in_progress';
+      case 'waiting_client':
+      case 'waiting_team':
+        return 'waiting';
+      default:
+        return 'pending';
     }
   };
 
-  const getStatusBadge = (status: Ticket['status']) => {
+  const getStatusLabel = (status: Ticket['status']) => {
     switch (status) {
       case 'waiting_client':
-        return <Badge variant="destructive" className="gap-1">{getStatusIcon(status)} Waiting for Client</Badge>;
+        return 'Waiting Client';
       case 'waiting_team':
-        return <Badge variant="secondary" className="gap-1">{getStatusIcon(status)} Waiting for Team</Badge>;
+        return 'Waiting Team';
       case 'in_progress':
-        return <Badge variant="default" className="gap-1 bg-amber-500">{getStatusIcon(status)} In Progress</Badge>;
+        return 'In Progress';
       case 'completed':
-        return <Badge variant="default" className="gap-1 bg-green-600">{getStatusIcon(status)} Completed</Badge>;
+        return 'Done';
+      default:
+        return status;
     }
   };
 
-  const getPriorityColor = (priority: Ticket['priority']) => {
-    switch (priority) {
-      case 'high':
-        return 'border-l-red-500';
-      case 'medium':
-        return 'border-l-amber-500';
-      case 'low':
-        return 'border-l-green-500';
-    }
-  };
+  const columns: DataTableColumn<Ticket>[] = [
+    {
+      key: 'title',
+      header: 'Title',
+      cell: (row) => (
+        <div>
+          <p className="font-medium">{row.title}</p>
+          <p className="text-sm text-muted-foreground">{row.clientName}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Workflow Type',
+      cell: (row) => <TypeBadge type={row.workflowType} />,
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      cell: (row) => (
+        <StatusBadge 
+          status={getStatusType(row.status)} 
+          label={getStatusLabel(row.status)} 
+        />
+      ),
+    },
+    {
+      key: 'step',
+      header: 'Current Step',
+      cell: (row) => {
+        const steps = getWorkflowSteps(row.workflowType);
+        const currentStepName = steps[row.currentStep]?.name || 'Unknown';
+        return <span className="text-muted-foreground">{currentStepName}</span>;
+      },
+    },
+    {
+      key: 'priority',
+      header: 'Priority',
+      cell: (row) => {
+        const priorityColors = {
+          high: 'bg-red-100 text-red-700',
+          medium: 'bg-amber-100 text-amber-700',
+          low: 'bg-green-100 text-green-700',
+        };
+        return (
+          <Badge variant="outline" className={`font-normal ${priorityColors[row.priority]}`}>
+            {row.priority.charAt(0).toUpperCase() + row.priority.slice(1)}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'assignedTo',
+      header: 'Assigned To',
+      cell: (row) => <span className="text-muted-foreground">{row.assignedTo}</span>,
+    },
+  ];
+
+  const actions = [
+    { label: 'View Details', onClick: (row: Ticket) => onTicketClick?.(row) },
+    { label: 'Reassign', onClick: (row: Ticket) => toast.info(`Reassigning ${row.title}`) },
+    { label: 'Mark Complete', onClick: (row: Ticket) => toast.success(`Marked ${row.title} complete`) },
+  ];
 
   if (tickets.length === 0) {
     return (
       <div className="text-center py-12">
-        <CheckCircle2 className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+        <div className="w-12 h-12 mx-auto rounded-full bg-muted flex items-center justify-center mb-3">
+          <span className="text-2xl">✓</span>
+        </div>
         <h3 className="text-lg font-medium text-foreground">No tickets found</h3>
         <p className="text-muted-foreground">All caught up! Check back later for new tasks.</p>
       </div>
@@ -58,44 +115,12 @@ export function TicketList({ tickets, onTicketClick }: TicketListProps) {
   }
 
   return (
-    <div className="space-y-3">
-      {tickets.map((ticket) => {
-        const steps = getWorkflowSteps(ticket.workflowType);
-        const currentStepName = steps[ticket.currentStep]?.name || 'Unknown';
-
-        return (
-          <Card
-            key={ticket.id}
-            className={cn(
-              'cursor-pointer transition-all hover:shadow-md border-l-4',
-              getPriorityColor(ticket.priority)
-            )}
-            onClick={() => onTicketClick?.(ticket)}
-          >
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-medium text-foreground truncate">{ticket.title}</h4>
-                    <Badge variant="outline" className="text-xs shrink-0">
-                      {ticket.workflowType}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {ticket.clientName} • Step: {currentStepName}
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  {getStatusBadge(ticket.status)}
-                  <span className="text-xs text-muted-foreground">
-                    Updated {ticket.updatedAt}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+    <DataTable
+      data={tickets}
+      columns={columns}
+      actions={actions}
+      onRowClick={onTicketClick}
+      getRowId={(row) => row.id}
+    />
   );
 }
