@@ -15,6 +15,7 @@ import MarketplacePage from "./pages/dashboard/MarketplacePage";
 import MessagesPage from "./pages/dashboard/MessagesPage";
 import ProfilePage from "./pages/dashboard/ProfilePage";
 import AdminOverview from "./pages/admin/AdminOverview";
+import UserManagement from "./pages/admin/UserManagement";
 import TeamManagement from "./pages/admin/TeamManagement";
 import WorkflowPermissions from "./pages/admin/WorkflowPermissions";
 import OpportunityCMS from "./pages/admin/OpportunityCMS";
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="/dashboard/profile" element={<ProfilePage />} />
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminOverview />} />
+            <Route path="/admin/users" element={<UserManagement />} />
             <Route path="/admin/teams" element={<TeamManagement />} />
             <Route path="/admin/permissions" element={<WorkflowPermissions />} />
             <Route path="/admin/opportunities" element={<OpportunityCMS />} />

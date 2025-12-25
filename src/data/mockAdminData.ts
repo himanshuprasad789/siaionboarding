@@ -11,6 +11,101 @@ export const mockTeamMembers: TeamMember[] = [
   { id: '6', name: 'Frank Wilson', email: 'frank@example.com', role: 'admin' },
 ];
 
+// Mock Clients data
+export interface Client {
+  id: string;
+  name: string;
+  email: string;
+  status: 'active' | 'onboarding' | 'paused';
+  assignedTeam: string;
+  activeWorkflows: string[];
+  createdAt: string;
+  lastActive: string;
+}
+
+export const mockClients: Client[] = [
+  { 
+    id: 'client-1', 
+    name: 'Dr. Sarah Johnson', 
+    email: 'sarah.j@research.edu', 
+    status: 'active',
+    assignedTeam: 'team-press',
+    activeWorkflows: ['press', 'paper_publishing'],
+    createdAt: '2024-10-15',
+    lastActive: '2024-12-24',
+  },
+  { 
+    id: 'client-2', 
+    name: 'Michael Chen', 
+    email: 'm.chen@techcorp.io', 
+    status: 'active',
+    assignedTeam: 'team-research',
+    activeWorkflows: ['salary', 'opportunities'],
+    createdAt: '2024-11-01',
+    lastActive: '2024-12-23',
+  },
+  { 
+    id: 'client-3', 
+    name: 'Emily Rodriguez', 
+    email: 'emily.r@startup.com', 
+    status: 'onboarding',
+    assignedTeam: 'team-press',
+    activeWorkflows: ['press'],
+    createdAt: '2024-12-10',
+    lastActive: '2024-12-22',
+  },
+  { 
+    id: 'client-4', 
+    name: 'James Kim', 
+    email: 'jkim@university.edu', 
+    status: 'active',
+    assignedTeam: 'team-paper',
+    activeWorkflows: ['paper_publishing', 'book_publishing'],
+    createdAt: '2024-09-20',
+    lastActive: '2024-12-24',
+  },
+  { 
+    id: 'client-5', 
+    name: 'Lisa Wang', 
+    email: 'lwang@enterprise.co', 
+    status: 'paused',
+    assignedTeam: 'team-research',
+    activeWorkflows: ['salary'],
+    createdAt: '2024-08-15',
+    lastActive: '2024-11-30',
+  },
+  { 
+    id: 'client-6', 
+    name: 'Robert Taylor', 
+    email: 'rtaylor@consulting.biz', 
+    status: 'active',
+    assignedTeam: 'team-press',
+    activeWorkflows: ['press', 'vendor'],
+    createdAt: '2024-11-20',
+    lastActive: '2024-12-24',
+  },
+  { 
+    id: 'client-7', 
+    name: 'Amanda Foster', 
+    email: 'afoster@biotech.org', 
+    status: 'active',
+    assignedTeam: 'team-paper',
+    activeWorkflows: ['paper_publishing'],
+    createdAt: '2024-10-01',
+    lastActive: '2024-12-23',
+  },
+  { 
+    id: 'client-8', 
+    name: 'Daniel Martinez', 
+    email: 'dmartinez@fintech.io', 
+    status: 'onboarding',
+    assignedTeam: 'team-research',
+    activeWorkflows: ['opportunities'],
+    createdAt: '2024-12-18',
+    lastActive: '2024-12-24',
+  },
+];
+
 export const mockTeams: Team[] = [
   {
     id: 'team-press',
@@ -75,6 +170,26 @@ export const mockWorkflows: Workflow[] = [
       { id: 'peer_review', name: 'Peer Review' },
       { id: 'acceptance', name: 'Acceptance' },
       { id: 'published', name: 'Published' },
+    ],
+  },
+  {
+    id: 'book_publishing',
+    name: 'Book Publishing',
+    stages: [
+      { id: 'manuscript', name: 'Manuscript' },
+      { id: 'editing', name: 'Editing' },
+      { id: 'design', name: 'Design' },
+      { id: 'distribution', name: 'Distribution' },
+    ],
+  },
+  {
+    id: 'opportunities',
+    name: 'Opportunities',
+    stages: [
+      { id: 'discovery', name: 'Discovery' },
+      { id: 'application', name: 'Application' },
+      { id: 'review', name: 'Review' },
+      { id: 'accepted', name: 'Accepted' },
     ],
   },
 ];

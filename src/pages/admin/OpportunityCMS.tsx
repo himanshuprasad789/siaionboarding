@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DataTable, DataTableColumn, TypeBadge } from '@/components/ui/data-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,15 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { Plus, Pencil, Trash2, Sparkles, Crown } from 'lucide-react';
+import { Plus, Crown, Columns } from 'lucide-react';
 import { mockOpportunities } from '@/data/mockAdminData';
 import { Opportunity } from '@/types/admin';
 import { toast } from 'sonner';
@@ -124,6 +116,58 @@ export default function OpportunityCMS() {
     setFormImageUrl(opp.imageUrl || '');
   };
 
+  const columns: DataTableColumn<Opportunity>[] = [
+    {
+      key: 'title',
+      header: 'Title',
+      cell: (row) => (
+        <div className="flex items-center gap-3">
+          <img 
+            src={row.imageUrl} 
+            alt={row.title}
+            className="h-10 w-10 rounded-lg object-cover bg-muted"
+          />
+          <div>
+            <p className="font-medium">{row.title}</p>
+            <p className="text-xs text-muted-foreground line-clamp-1">
+              {row.description}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'category',
+      header: 'Category',
+      cell: (row) => <TypeBadge type={row.criteriaCategory} />,
+    },
+    {
+      key: 'type',
+      header: 'Type',
+      cell: (row) => (
+        row.isPremium ? (
+          <Badge className="gap-1 bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">
+            <Crown className="h-3 w-3" />
+            Premium
+          </Badge>
+        ) : (
+          <Badge variant="secondary" className="font-normal">Free</Badge>
+        )
+      ),
+    },
+    {
+      key: 'updated',
+      header: 'Updated',
+      cell: (row) => <span className="text-muted-foreground">{row.updatedAt}</span>,
+    },
+  ];
+
+  const actions = [
+    { label: 'Edit', onClick: (row: Opportunity) => openEdit(row) },
+    { label: 'View in Marketplace', onClick: (row: Opportunity) => toast.info(`Viewing ${row.title}`) },
+    { label: 'Delete', onClick: (row: Opportunity) => handleDelete(row.id), variant: 'destructive' as const },
+  ];
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -135,85 +179,91 @@ export default function OpportunityCMS() {
             </p>
           </div>
           
-          <Dialog open={isCreateOpen} onOpenChange={(open) => {
-            setIsCreateOpen(open);
-            if (!open) resetForm();
-          }}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Opportunity
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Create New Opportunity</DialogTitle>
-                <DialogDescription>
-                  Add a new opportunity to the client marketplace.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="opp-title">Title *</Label>
-                  <Input
-                    id="opp-title"
-                    placeholder="e.g., AI Summit 2025 Speaker"
-                    value={formTitle}
-                    onChange={(e) => setFormTitle(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="opp-desc">Description</Label>
-                  <Textarea
-                    id="opp-desc"
-                    placeholder="Describe this opportunity..."
-                    value={formDescription}
-                    onChange={(e) => setFormDescription(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Criteria Category *</Label>
-                  <Select value={formCategory} onValueChange={setFormCategory}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {criteriaCategories.map((cat) => (
-                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="opp-image">Image URL</Label>
-                  <Input
-                    id="opp-image"
-                    placeholder="https://..."
-                    value={formImageUrl}
-                    onChange={(e) => setFormImageUrl(e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Premium Opportunity</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Premium opportunities require a paid upgrade
-                    </p>
-                  </div>
-                  <Switch 
-                    checked={formIsPremium} 
-                    onCheckedChange={setFormIsPremium} 
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-                  Cancel
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="gap-2">
+              <Columns className="h-4 w-4" />
+              Customize Columns
+            </Button>
+            <Dialog open={isCreateOpen} onOpenChange={(open) => {
+              setIsCreateOpen(open);
+              if (!open) resetForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Opportunity
                 </Button>
-                <Button onClick={handleCreate}>Create</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Create New Opportunity</DialogTitle>
+                  <DialogDescription>
+                    Add a new opportunity to the client marketplace.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="opp-title">Title *</Label>
+                    <Input
+                      id="opp-title"
+                      placeholder="e.g., AI Summit 2025 Speaker"
+                      value={formTitle}
+                      onChange={(e) => setFormTitle(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="opp-desc">Description</Label>
+                    <Textarea
+                      id="opp-desc"
+                      placeholder="Describe this opportunity..."
+                      value={formDescription}
+                      onChange={(e) => setFormDescription(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Criteria Category *</Label>
+                    <Select value={formCategory} onValueChange={setFormCategory}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {criteriaCategories.map((cat) => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="opp-image">Image URL</Label>
+                    <Input
+                      id="opp-image"
+                      placeholder="https://..."
+                      value={formImageUrl}
+                      onChange={(e) => setFormImageUrl(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Premium Opportunity</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Premium opportunities require a paid upgrade
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={formIsPremium} 
+                      onCheckedChange={setFormIsPremium} 
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleCreate}>Create</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Edit Dialog */}
@@ -286,87 +336,12 @@ export default function OpportunityCMS() {
         </Dialog>
 
         {/* Opportunities Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              All Opportunities
-            </CardTitle>
-            <CardDescription>
-              {opportunities.length} opportunities in the marketplace
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {opportunities.map((opp) => (
-                  <TableRow key={opp.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <img 
-                          src={opp.imageUrl} 
-                          alt={opp.title}
-                          className="h-10 w-10 rounded-lg object-cover bg-muted"
-                        />
-                        <div>
-                          <p className="font-medium">{opp.title}</p>
-                          <p className="text-xs text-muted-foreground line-clamp-1">
-                            {opp.description}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{opp.criteriaCategory}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {opp.isPremium ? (
-                        <Badge className="gap-1 bg-amber-500/10 text-amber-600 border-amber-500/20">
-                          <Crown className="h-3 w-3" />
-                          Premium
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">Free</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {opp.updatedAt}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => openEdit(opp)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8 text-destructive"
-                          onClick={() => handleDelete(opp.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <DataTable
+          data={opportunities}
+          columns={columns}
+          actions={actions}
+          onRowClick={(row) => openEdit(row)}
+        />
       </div>
     </AdminLayout>
   );

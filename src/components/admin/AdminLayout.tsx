@@ -30,6 +30,7 @@ interface AdminLayoutProps {
 
 const adminMenuItems = [
   { title: 'Overview', url: '/admin', icon: LayoutDashboard },
+  { title: 'User Management', url: '/admin/users', icon: Users },
   { title: 'Team Management', url: '/admin/teams', icon: Users },
   { title: 'Workflow Permissions', url: '/admin/permissions', icon: Shield },
   { title: 'Opportunity CMS', url: '/admin/opportunities', icon: Sparkles },
