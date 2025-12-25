@@ -45,7 +45,7 @@ export function StepFOE() {
 
   const handleFinalize = () => {
     setIsComplete(true);
-    navigate('/dashboard/strategy');
+    navigate('/dashboard');
   };
 
   const selectedCount = data.selectedFields.length;
