@@ -29,6 +29,7 @@ export default function Auth() {
   // Redirect if already logged in
   useEffect(() => {
     if (user && !loading) {
+      // Check if user has staff roles - if so go to dashboard, otherwise onboarding check will handle it
       navigate('/dashboard');
     }
   }, [user, loading, navigate]);
@@ -88,6 +89,7 @@ export default function Auth() {
       }
     } else {
       toast.success('Account created successfully!');
+      // New users go to onboarding
       navigate('/onboarding');
     }
   };

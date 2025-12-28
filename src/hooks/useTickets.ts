@@ -192,6 +192,38 @@ export function useUpdateTicket() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tickets"] });
       queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["tickets-by-team"] });
+    },
+  });
+}
+
+export function useCreateTicket() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ticket: {
+      client_id: string;
+      title: string;
+      description?: string;
+      assigned_team?: string;
+      assigned_to?: string;
+      due_date?: string;
+      priority?: 'low' | 'medium' | 'high' | 'urgent';
+      related_workflow_id?: string;
+    }) => {
+      const { data, error } = await supabase
+        .from("tickets")
+        .insert(ticket)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["tickets-by-team"] });
     },
   });
 }
