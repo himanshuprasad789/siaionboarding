@@ -14,7 +14,7 @@ const Index = () => {
             </div>
             <span className="text-lg font-display font-bold">EB1 Strategy</span>
           </div>
-          <Link to="/onboarding">
+          <Link to="/auth">
             <Button variant="accent" size="lg">
               Get Started
               <ArrowRight className="w-5 h-5" />
@@ -32,19 +32,19 @@ const Index = () => {
               Strategic evidence building and opportunity matching for extraordinary ability visa applicants.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <Link to="/onboarding">
+              <Link to="/auth">
                 <Button variant="accent" size="xl">
                   Start Your Assessment
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
-              <Link to="/dashboard/strategy">
+              <Link to="/auth">
                 <Button
                   variant="secondary"
                   size="xl"
                   className="bg-primary-foreground/10 border border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/20"
                 >
-                  View Demo Dashboard
+                  Sign In
                 </Button>
               </Link>
             </div>
@@ -152,7 +152,7 @@ const Index = () => {
             <p className="text-lg text-primary-foreground/80">
               Start your free assessment and see how we can help you achieve EB1A approval.
             </p>
-            <Link to="/onboarding">
+            <Link to="/auth">
               <Button variant="accent" size="xl">
                 Begin Your Journey
                 <ArrowRight className="w-5 h-5" />
