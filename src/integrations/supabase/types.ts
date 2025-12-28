@@ -91,48 +91,65 @@ export type Database = {
       }
       client_profiles: {
         Row: {
+          assigned_team_id: string | null
           created_at: string
           current_employer: string | null
           current_title: string | null
           field_of_expertise: string | null
           id: string
+          last_active_at: string | null
           niche: string | null
           onboarding_completed: boolean | null
           onboarding_step: number | null
+          status: string | null
           target_visa_type: string | null
           updated_at: string
           user_id: string
           years_experience: number | null
         }
         Insert: {
+          assigned_team_id?: string | null
           created_at?: string
           current_employer?: string | null
           current_title?: string | null
           field_of_expertise?: string | null
           id?: string
+          last_active_at?: string | null
           niche?: string | null
           onboarding_completed?: boolean | null
           onboarding_step?: number | null
+          status?: string | null
           target_visa_type?: string | null
           updated_at?: string
           user_id: string
           years_experience?: number | null
         }
         Update: {
+          assigned_team_id?: string | null
           created_at?: string
           current_employer?: string | null
           current_title?: string | null
           field_of_expertise?: string | null
           id?: string
+          last_active_at?: string | null
           niche?: string | null
           onboarding_completed?: boolean | null
           onboarding_step?: number | null
+          status?: string | null
           target_visa_type?: string | null
           updated_at?: string
           user_id?: string
           years_experience?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "client_profiles_assigned_team_id_fkey"
+            columns: ["assigned_team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       client_workflows: {
         Row: {
@@ -344,6 +361,7 @@ export type Database = {
           full_name: string | null
           id: string
           phone: string | null
+          team_id: string | null
           timezone: string | null
           updated_at: string
         }
@@ -354,6 +372,7 @@ export type Database = {
           full_name?: string | null
           id: string
           phone?: string | null
+          team_id?: string | null
           timezone?: string | null
           updated_at?: string
         }
@@ -364,7 +383,76 @@ export type Database = {
           full_name?: string | null
           id?: string
           phone?: string | null
+          team_id?: string | null
           timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_workflow_access: {
+        Row: {
+          created_at: string
+          id: string
+          team_id: string
+          workflow_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          team_id: string
+          workflow_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          team_id?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_workflow_access_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_workflow_access_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
           updated_at?: string
         }
         Relationships: []
