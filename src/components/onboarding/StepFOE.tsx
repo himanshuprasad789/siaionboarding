@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { MOCK_FIELDS, FieldOfEndeavor } from '@/types/onboarding';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCompleteOnboarding } from '@/hooks/useClientOnboarding';
+import { toast } from 'sonner';
 
 const container = {
   hidden: { opacity: 0 },
@@ -25,6 +27,8 @@ export function StepFOE() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [fields, setFields] = useState<FieldOfEndeavor[]>([]);
+  const completeOnboarding = useCompleteOnboarding();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -43,9 +47,27 @@ export function StepFOE() {
     }
   };
 
-  const handleFinalize = () => {
-    setIsComplete(true);
-    navigate('/dashboard');
+  const handleFinalize = async () => {
+    setIsSubmitting(true);
+    try {
+      await completeOnboarding.mutateAsync({
+        essentials: {
+          fullName: data.essentials.fullName,
+          jobTitle: data.essentials.jobTitle,
+          yearsExperience: data.essentials.yearsExperience,
+          niche: data.niche.specificNiche,
+        },
+        selectedFields: data.selectedFields,
+      });
+      setIsComplete(true);
+      toast.success('Profile setup complete! Welcome to your dashboard.');
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      toast.error('Failed to complete setup. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const selectedCount = data.selectedFields.length;
@@ -143,9 +165,16 @@ export function StepFOE() {
           size="lg"
           className="flex-1 h-12"
           onClick={handleFinalize}
-          disabled={selectedCount !== 5}
+          disabled={selectedCount !== 5 || isSubmitting}
         >
-          Complete Setup
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Setting up...
+            </>
+          ) : (
+            'Complete Setup'
+          )}
         </Button>
       </div>
     </div>

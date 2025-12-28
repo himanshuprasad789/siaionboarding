@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRole, AppRole } from '@/contexts/RoleContext';
+import { useClientOnboardingStatus } from '@/hooks/useClientOnboarding';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -18,10 +19,12 @@ export function ProtectedRoute({
   requireStaff,
 }: ProtectedRouteProps) {
   const { user, loading: authLoading } = useAuth();
-  const { roles, isLoading: rolesLoading, isAdmin, isStaff, hasRole } = useRole();
+  const { roles, isLoading: rolesLoading, isAdmin, isStaff, hasRole, isClient } = useRole();
+  const { data: onboardingStatus, isLoading: onboardingLoading } = useClientOnboardingStatus();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const isLoading = authLoading || rolesLoading;
+  const isLoading = authLoading || rolesLoading || (isClient && onboardingLoading);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -50,8 +53,16 @@ export function ProtectedRoute({
           return;
         }
       }
+
+      // Client onboarding check - only for non-staff, non-onboarding routes
+      if (isClient && !isStaff && !location.pathname.startsWith('/onboarding')) {
+        if (onboardingStatus && !onboardingStatus.onboarding_completed) {
+          navigate('/onboarding');
+          return;
+        }
+      }
     }
-  }, [user, isLoading, navigate, requireAdmin, requireStaff, requiredRoles, isAdmin, isStaff, hasRole]);
+  }, [user, isLoading, navigate, requireAdmin, requireStaff, requiredRoles, isAdmin, isStaff, hasRole, isClient, onboardingStatus, location.pathname]);
 
   if (isLoading) {
     return (
