@@ -14,16 +14,697 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_log: {
+        Row: {
+          action: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: unknown
+          metadata: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: unknown
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      client_opportunities: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          opportunity_id: string
+          priority: number | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opportunity_id: string
+          priority?: number | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          opportunity_id?: string
+          priority?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_opportunities_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_opportunities_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_profiles: {
+        Row: {
+          created_at: string
+          current_employer: string | null
+          current_title: string | null
+          field_of_expertise: string | null
+          id: string
+          niche: string | null
+          onboarding_completed: boolean | null
+          onboarding_step: number | null
+          target_visa_type: string | null
+          updated_at: string
+          user_id: string
+          years_experience: number | null
+        }
+        Insert: {
+          created_at?: string
+          current_employer?: string | null
+          current_title?: string | null
+          field_of_expertise?: string | null
+          id?: string
+          niche?: string | null
+          onboarding_completed?: boolean | null
+          onboarding_step?: number | null
+          target_visa_type?: string | null
+          updated_at?: string
+          user_id: string
+          years_experience?: number | null
+        }
+        Update: {
+          created_at?: string
+          current_employer?: string | null
+          current_title?: string | null
+          field_of_expertise?: string | null
+          id?: string
+          niche?: string | null
+          onboarding_completed?: boolean | null
+          onboarding_step?: number | null
+          target_visa_type?: string | null
+          updated_at?: string
+          user_id?: string
+          years_experience?: number | null
+        }
+        Relationships: []
+      }
+      client_workflows: {
+        Row: {
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          current_stage_id: string | null
+          id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["workflow_stage_status"]
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          current_stage_id?: string | null
+          id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["workflow_stage_status"]
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          current_stage_id?: string | null
+          id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["workflow_stage_status"]
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_workflows_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_workflows_current_stage_id_fkey"
+            columns: ["current_stage_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_workflows_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence_items: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          evidence_type: Database["public"]["Enums"]["evidence_type"]
+          file_path: string | null
+          id: string
+          metadata: Json | null
+          opportunity_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_notes: string | null
+          status: Database["public"]["Enums"]["evidence_status"]
+          title: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          evidence_type: Database["public"]["Enums"]["evidence_type"]
+          file_path?: string | null
+          id?: string
+          metadata?: Json | null
+          opportunity_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          status?: Database["public"]["Enums"]["evidence_status"]
+          title: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          evidence_type?: Database["public"]["Enums"]["evidence_type"]
+          file_path?: string | null
+          id?: string
+          metadata?: Json | null
+          opportunity_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_notes?: string | null
+          status?: Database["public"]["Enums"]["evidence_status"]
+          title?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_items_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_items_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          read_at: string | null
+          recipient_id: string
+          sender_id: string
+          subject: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id: string
+          sender_id: string
+          subject?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string
+          subject?: string | null
+        }
+        Relationships: []
+      }
+      opportunities: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          difficulty_level: number | null
+          estimated_time_weeks: number | null
+          evidence_types: string[] | null
+          id: string
+          requirements: Json | null
+          status: Database["public"]["Enums"]["opportunity_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          difficulty_level?: number | null
+          estimated_time_weeks?: number | null
+          evidence_types?: string[] | null
+          id?: string
+          requirements?: Json | null
+          status?: Database["public"]["Enums"]["opportunity_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          difficulty_level?: number | null
+          estimated_time_weeks?: number | null
+          evidence_types?: string[] | null
+          id?: string
+          requirements?: Json | null
+          status?: Database["public"]["Enums"]["opportunity_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          timezone: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          timezone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ticket_comments: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          id: string
+          is_internal: boolean | null
+          ticket_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean | null
+          ticket_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean | null
+          ticket_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_comments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
+        Row: {
+          assigned_team: string | null
+          assigned_to: string | null
+          client_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: Database["public"]["Enums"]["ticket_priority"]
+          related_evidence_id: string | null
+          related_workflow_id: string | null
+          status: Database["public"]["Enums"]["ticket_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_team?: string | null
+          assigned_to?: string | null
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["ticket_priority"]
+          related_evidence_id?: string | null
+          related_workflow_id?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_team?: string | null
+          assigned_to?: string | null
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["ticket_priority"]
+          related_evidence_id?: string | null
+          related_workflow_id?: string | null
+          status?: Database["public"]["Enums"]["ticket_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "client_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_related_evidence_id_fkey"
+            columns: ["related_evidence_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_related_workflow_id_fkey"
+            columns: ["related_workflow_id"]
+            isOneToOne: false
+            referencedRelation: "client_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workflow_permissions: {
+        Row: {
+          created_at: string
+          id: string
+          permission_level: Database["public"]["Enums"]["permission_level"]
+          role: Database["public"]["Enums"]["app_role"]
+          stage_id: string
+          workflow_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          permission_level?: Database["public"]["Enums"]["permission_level"]
+          role: Database["public"]["Enums"]["app_role"]
+          stage_id: string
+          workflow_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          permission_level?: Database["public"]["Enums"]["permission_level"]
+          role?: Database["public"]["Enums"]["app_role"]
+          stage_id?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_permissions_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_permissions_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_stage_progress: {
+        Row: {
+          assigned_to: string | null
+          client_workflow_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          stage_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["workflow_stage_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          client_workflow_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          stage_id: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["workflow_stage_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          client_workflow_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          stage_id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["workflow_stage_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_stage_progress_client_workflow_id_fkey"
+            columns: ["client_workflow_id"]
+            isOneToOne: false
+            referencedRelation: "client_workflows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workflow_stage_progress_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflow_stages: {
+        Row: {
+          created_at: string
+          description: string | null
+          estimated_hours: number | null
+          id: string
+          name: string
+          order_index: number
+          required_role: Database["public"]["Enums"]["app_role"] | null
+          workflow_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          estimated_hours?: number | null
+          id?: string
+          name: string
+          order_index: number
+          required_role?: Database["public"]["Enums"]["app_role"] | null
+          workflow_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          estimated_hours?: number | null
+          id?: string
+          name?: string
+          order_index?: number
+          required_role?: Database["public"]["Enums"]["app_role"] | null
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_stages_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workflows: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          team: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          team: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          team?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_client_profile_id: { Args: { _user_id: string }; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_staff: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "client" | "press" | "research" | "paper" | "admin"
+      evidence_status: "pending" | "approved" | "rejected" | "needs_revision"
+      evidence_type:
+        | "publication"
+        | "citation"
+        | "patent"
+        | "award"
+        | "grant"
+        | "media_coverage"
+        | "speaking_engagement"
+        | "review_work"
+        | "membership"
+        | "leadership"
+        | "salary_evidence"
+        | "other"
+      opportunity_status: "draft" | "review" | "published" | "archived"
+      permission_level: "hidden" | "masked" | "read" | "edit"
+      ticket_priority: "low" | "medium" | "high" | "urgent"
+      ticket_status: "open" | "in_progress" | "pending_review" | "closed"
+      workflow_stage_status: "pending" | "in_progress" | "completed" | "blocked"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +831,28 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["client", "press", "research", "paper", "admin"],
+      evidence_status: ["pending", "approved", "rejected", "needs_revision"],
+      evidence_type: [
+        "publication",
+        "citation",
+        "patent",
+        "award",
+        "grant",
+        "media_coverage",
+        "speaking_engagement",
+        "review_work",
+        "membership",
+        "leadership",
+        "salary_evidence",
+        "other",
+      ],
+      opportunity_status: ["draft", "review", "published", "archived"],
+      permission_level: ["hidden", "masked", "read", "edit"],
+      ticket_priority: ["low", "medium", "high", "urgent"],
+      ticket_status: ["open", "in_progress", "pending_review", "closed"],
+      workflow_stage_status: ["pending", "in_progress", "completed", "blocked"],
+    },
   },
 } as const
