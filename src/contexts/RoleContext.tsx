@@ -1,68 +1,75 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { AppRole } from '@/types/admin';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { useUserRoles, UserRole } from '@/hooks/useUserRole';
+import { useProfile } from '@/hooks/useProfiles';
+import { useAuth } from '@/contexts/AuthContext';
+import { Database } from '@/integrations/supabase/types';
 
-interface MockUser {
+type AppRole = Database["public"]["Enums"]["app_role"];
+
+interface CurrentUser {
   id: string;
   name: string;
   email: string;
-  role: AppRole;
+  roles: AppRole[];
+  primaryRole: AppRole;
 }
 
 interface RoleContextType {
-  user: MockUser | null;
-  login: (role: AppRole) => void;
-  logout: () => void;
-  isLoggedIn: boolean;
+  user: CurrentUser | null;
+  roles: AppRole[];
+  isLoading: boolean;
+  hasRole: (role: AppRole) => boolean;
+  isAdmin: boolean;
+  isStaff: boolean;
+  isClient: boolean;
 }
-
-const mockUsers: Record<AppRole, MockUser> = {
-  client: {
-    id: 'user-client',
-    name: 'John Doe',
-    email: 'john@example.com',
-    role: 'client',
-  },
-  press: {
-    id: 'user-press',
-    name: 'Alice Chen',
-    email: 'alice@example.com',
-    role: 'press',
-  },
-  research: {
-    id: 'user-research',
-    name: 'Carol Davis',
-    email: 'carol@example.com',
-    role: 'research',
-  },
-  paper: {
-    id: 'user-paper',
-    name: 'Eva Martinez',
-    email: 'eva@example.com',
-    role: 'paper',
-  },
-  admin: {
-    id: 'user-admin',
-    name: 'Frank Wilson',
-    email: 'frank@example.com',
-    role: 'admin',
-  },
-};
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<MockUser | null>(null);
+  const { user: authUser } = useAuth();
+  const { data: userRoles, isLoading: rolesLoading } = useUserRoles();
+  const { data: profile, isLoading: profileLoading } = useProfile();
 
-  const login = (role: AppRole) => {
-    setUser(mockUsers[role]);
+  const isLoading = rolesLoading || profileLoading;
+  
+  const roles = userRoles?.map(r => r.role) || [];
+  
+  // Determine primary role (highest privilege first)
+  const getPrimaryRole = (): AppRole => {
+    if (roles.includes('admin')) return 'admin';
+    if (roles.includes('research')) return 'research';
+    if (roles.includes('press')) return 'press';
+    if (roles.includes('paper')) return 'paper';
+    return 'client';
   };
 
-  const logout = () => {
-    setUser(null);
+  const currentUser: CurrentUser | null = authUser && profile ? {
+    id: authUser.id,
+    name: profile.full_name || profile.email,
+    email: profile.email,
+    roles,
+    primaryRole: getPrimaryRole(),
+  } : null;
+
+  const hasRole = (role: AppRole): boolean => {
+    return roles.includes(role);
   };
+
+  const isAdmin = roles.includes('admin');
+  const isStaff = roles.some(r => ['admin', 'press', 'research', 'paper'].includes(r));
+  const isClient = roles.includes('client') || roles.length === 0;
 
   return (
-    <RoleContext.Provider value={{ user, login, logout, isLoggedIn: !!user }}>
+    <RoleContext.Provider value={{ 
+      user: currentUser, 
+      roles,
+      isLoading,
+      hasRole,
+      isAdmin,
+      isStaff,
+      isClient,
+    }}>
       {children}
     </RoleContext.Provider>
   );
@@ -75,3 +82,6 @@ export function useRole() {
   }
   return context;
 }
+
+// Re-export AppRole type for convenience
+export type { AppRole };

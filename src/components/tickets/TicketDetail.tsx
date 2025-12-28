@@ -19,12 +19,12 @@ interface TicketDetailProps {
 }
 
 export function TicketDetail({ ticket, workflowSteps, onStepComplete }: TicketDetailProps) {
-  const { user } = useRole();
-  const currentRole = user?.role || 'client';
+  const { user, isAdmin } = useRole();
+  const currentRole = user?.primaryRole || 'client';
   const [activeStep, setActiveStep] = useState(ticket.currentStep);
 
   const currentStepData = workflowSteps[activeStep];
-  const canEdit = currentStepData?.role === currentRole || currentRole === 'admin';
+  const canEdit = currentStepData?.role === currentRole || isAdmin;
 
   return (
     <div className="space-y-6">
