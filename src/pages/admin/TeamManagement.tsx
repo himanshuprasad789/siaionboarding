@@ -22,75 +22,114 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Users, Trash2, UserPlus } from 'lucide-react';
-import { mockTeams, mockTeamMembers, allRoles } from '@/data/mockAdminData';
-import { Team, TeamMember, AppRole } from '@/types/admin';
+import { Plus, Users, Trash2, UserPlus, Loader2 } from 'lucide-react';
+import { useTeams, TeamWithWorkflows } from '@/hooks/useTeams';
+import { useStaffMembers, StaffMemberWithDetails } from '@/hooks/useAdminData';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 
+type AppRole = Database["public"]["Enums"]["app_role"];
+
 export default function TeamManagement() {
-  const [teams, setTeams] = useState<Team[]>(mockTeams);
-  const [availableMembers] = useState<TeamMember[]>(mockTeamMembers);
+  const queryClient = useQueryClient();
+  const { data: teams = [], isLoading: teamsLoading } = useTeams();
+  const { data: staffMembers = [], isLoading: staffLoading } = useStaffMembers();
+  
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamDesc, setNewTeamDesc] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-  const [selectedMember, setSelectedMember] = useState('');
+  const [selectedMemberByTeam, setSelectedMemberByTeam] = useState<Record<string, string>>({});
+
+  const createTeamMutation = useMutation({
+    mutationFn: async ({ name, description }: { name: string; description: string }) => {
+      const { error } = await supabase
+        .from('teams')
+        .insert({ name, description });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      setNewTeamName('');
+      setNewTeamDesc('');
+      setIsCreateOpen(false);
+      toast.success(`Team "${newTeamName}" created successfully`);
+    },
+    onError: (error) => {
+      console.error('Error creating team:', error);
+      toast.error('Failed to create team');
+    },
+  });
+
+  const deleteTeamMutation = useMutation({
+    mutationFn: async (teamId: string) => {
+      const { error } = await supabase
+        .from('teams')
+        .delete()
+        .eq('id', teamId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      toast.success('Team deleted');
+    },
+    onError: (error) => {
+      console.error('Error deleting team:', error);
+      toast.error('Failed to delete team');
+    },
+  });
+
+  const updateMemberTeamMutation = useMutation({
+    mutationFn: async ({ memberId, teamId }: { memberId: string; teamId: string | null }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ team_id: teamId })
+        .eq('id', memberId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-members'] });
+    },
+    onError: (error) => {
+      console.error('Error updating member team:', error);
+      toast.error('Failed to update member');
+    },
+  });
 
   const handleCreateTeam = () => {
     if (!newTeamName.trim()) {
       toast.error('Please enter a team name');
       return;
     }
-    
-    const newTeam: Team = {
-      id: `team-${Date.now()}`,
-      name: newTeamName,
-      description: newTeamDesc,
-      members: [],
-      workflowAccess: [],
-    };
-    
-    setTeams([...teams, newTeam]);
-    setNewTeamName('');
-    setNewTeamDesc('');
-    setIsCreateOpen(false);
-    toast.success(`Team "${newTeamName}" created successfully`);
+    createTeamMutation.mutate({ name: newTeamName, description: newTeamDesc });
   };
 
   const handleDeleteTeam = (teamId: string) => {
-    setTeams(teams.filter(t => t.id !== teamId));
-    toast.success('Team deleted');
+    deleteTeamMutation.mutate(teamId);
   };
 
   const handleAddMember = (teamId: string) => {
-    if (!selectedMember) return;
+    const memberId = selectedMemberByTeam[teamId];
+    if (!memberId) return;
     
-    const member = availableMembers.find(m => m.id === selectedMember);
-    if (!member) return;
-
-    setTeams(teams.map(team => {
-      if (team.id === teamId) {
-        if (team.members.some(m => m.id === member.id)) {
-          toast.error('Member already in team');
-          return team;
-        }
-        return { ...team, members: [...team.members, member] };
-      }
-      return team;
-    }));
-    
-    setSelectedMember('');
-    toast.success(`${member.name} added to team`);
+    updateMemberTeamMutation.mutate({ memberId, teamId });
+    setSelectedMemberByTeam(prev => ({ ...prev, [teamId]: '' }));
+    toast.success('Member added to team');
   };
 
-  const handleRemoveMember = (teamId: string, memberId: string) => {
-    setTeams(teams.map(team => {
-      if (team.id === teamId) {
-        return { ...team, members: team.members.filter(m => m.id !== memberId) };
-      }
-      return team;
-    }));
+  const handleRemoveMember = (memberId: string) => {
+    updateMemberTeamMutation.mutate({ memberId, teamId: null });
     toast.success('Member removed from team');
+  };
+
+  const getTeamMembers = (teamId: string): StaffMemberWithDetails[] => {
+    return staffMembers.filter(m => m.team_id === teamId);
+  };
+
+  const getAvailableMembers = (teamId: string): StaffMemberWithDetails[] => {
+    return staffMembers.filter(m => m.team_id !== teamId);
   };
 
   const getRoleBadgeVariant = (role: AppRole) => {
@@ -102,6 +141,18 @@ export default function TeamManagement() {
       default: return 'outline';
     }
   };
+
+  const isLoading = teamsLoading || staffLoading;
+
+  if (isLoading) {
+    return (
+      <AdminLayout>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -152,115 +203,142 @@ export default function TeamManagement() {
                 <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleCreateTeam}>Create Team</Button>
+                <Button onClick={handleCreateTeam} disabled={createTeamMutation.isPending}>
+                  {createTeamMutation.isPending ? 'Creating...' : 'Create Team'}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {teams.map((team) => (
-            <Card key={team.id} className="relative">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Users className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{team.name}</CardTitle>
-                      <CardDescription className="text-xs">
-                        {team.members.length} members
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => handleDeleteTeam(team.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {team.description}
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Workflow Access */}
-                <div className="flex flex-wrap gap-1">
-                  {team.workflowAccess.map((workflow) => (
-                    <Badge key={workflow} variant="outline" className="text-xs">
-                      {workflow}
-                    </Badge>
-                  ))}
-                </div>
-
-                {/* Members List */}
-                <div className="space-y-2">
-                  {team.members.map((member) => (
-                    <div 
-                      key={member.id}
-                      className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-7 w-7">
-                          <AvatarFallback className="text-xs">
-                            {member.name.split(' ').map(n => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>
+        {teams.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            No teams found. Create your first team to get started.
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {teams.map((team) => {
+              const teamMembers = getTeamMembers(team.id);
+              const availableMembers = getAvailableMembers(team.id);
+              
+              return (
+                <Card key={team.id} className="relative">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                          <Users className="h-5 w-5" />
+                        </div>
                         <div>
-                          <p className="text-sm font-medium">{member.name}</p>
-                          <p className="text-xs text-muted-foreground">{member.email}</p>
+                          <CardTitle className="text-lg">{team.name}</CardTitle>
+                          <CardDescription className="text-xs">
+                            {teamMembers.length} members
+                          </CardDescription>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={getRoleBadgeVariant(member.role)} className="text-xs">
-                          {member.role}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => handleRemoveMember(team.id, member.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeleteTeam(team.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                  ))}
-                </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {team.description || 'No description'}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Workflow Access */}
+                    <div className="flex flex-wrap gap-1">
+                      {team.workflowAccess.map((workflow) => (
+                        <Badge key={workflow.id} variant="outline" className="text-xs">
+                          {workflow.name}
+                        </Badge>
+                      ))}
+                      {team.workflowAccess.length === 0 && (
+                        <span className="text-xs text-muted-foreground">No workflow access</span>
+                      )}
+                    </div>
 
-                {/* Add Member */}
-                <div className="flex gap-2">
-                  <Select value={selectedMember} onValueChange={setSelectedMember}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Add member..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableMembers
-                        .filter(m => !team.members.some(tm => tm.id === m.id))
-                        .map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            {member.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  <Button 
-                    size="icon" 
-                    variant="outline"
-                    onClick={() => handleAddMember(team.id)}
-                    disabled={!selectedMember}
-                  >
-                    <UserPlus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    {/* Members List */}
+                    <div className="space-y-2">
+                      {teamMembers.map((member) => {
+                        const primaryRole = member.roles[0]?.role as AppRole | undefined;
+                        return (
+                          <div 
+                            key={member.id}
+                            className="flex items-center justify-between p-2 rounded-lg bg-muted/50"
+                          >
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-7 w-7">
+                                <AvatarFallback className="text-xs">
+                                  {member.full_name?.split(' ').map(n => n[0]).join('') || '??'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <p className="text-sm font-medium">{member.full_name || 'Unknown'}</p>
+                                <p className="text-xs text-muted-foreground">{member.email}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {primaryRole && (
+                                <Badge variant={getRoleBadgeVariant(primaryRole)} className="text-xs">
+                                  {primaryRole}
+                                </Badge>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => handleRemoveMember(member.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {teamMembers.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-2">
+                          No members in this team
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Add Member */}
+                    <div className="flex gap-2">
+                      <Select 
+                        value={selectedMemberByTeam[team.id] || ''} 
+                        onValueChange={(value) => setSelectedMemberByTeam(prev => ({ ...prev, [team.id]: value }))}
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Add member..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableMembers.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                              {member.full_name || member.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button 
+                        size="icon" 
+                        variant="outline"
+                        onClick={() => handleAddMember(team.id)}
+                        disabled={!selectedMemberByTeam[team.id]}
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

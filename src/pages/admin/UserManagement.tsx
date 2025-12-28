@@ -5,26 +5,35 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Plus, Columns } from 'lucide-react';
-import { mockClients, mockTeamMembers, mockTeams, mockWorkflows, Client } from '@/data/mockAdminData';
-import { TeamMember, AppRole } from '@/types/admin';
+import { Plus, Columns, Loader2 } from 'lucide-react';
+import { useClientsWithDetails, useStaffMembers, ClientWithDetails, StaffMemberWithDetails } from '@/hooks/useAdminData';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+
+type AppRole = 'admin' | 'press' | 'research' | 'paper' | 'client';
 
 export default function UserManagement() {
   const [activeTab, setActiveTab] = useState('clients');
+  
+  const { data: clients = [], isLoading: clientsLoading } = useClientsWithDetails();
+  const { data: staffMembers = [], isLoading: staffLoading } = useStaffMembers();
 
-  // Get team name by ID
-  const getTeamName = (teamId: string) => {
-    return mockTeams.find(t => t.id === teamId)?.name || teamId;
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return '??';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
-  // Get workflow names
-  const getWorkflowNames = (workflowIds: string[]) => {
-    return workflowIds.map(id => mockWorkflows.find(w => w.id === id)?.name || id);
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'Never';
+    try {
+      return format(new Date(dateString), 'yyyy-MM-dd');
+    } catch {
+      return 'Invalid date';
+    }
   };
 
   // Client columns
-  const clientColumns: DataTableColumn<Client>[] = [
+  const clientColumns: DataTableColumn<ClientWithDetails>[] = [
     {
       key: 'name',
       header: 'Name',
@@ -32,12 +41,12 @@ export default function UserManagement() {
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="text-xs bg-primary/10 text-primary">
-              {row.name.split(' ').map(n => n[0]).join('')}
+              {getInitials(row.profile?.full_name)}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-medium">{row.name}</p>
-            <p className="text-sm text-muted-foreground">{row.email}</p>
+            <p className="font-medium">{row.profile?.full_name || 'Unknown'}</p>
+            <p className="text-sm text-muted-foreground">{row.profile?.email}</p>
           </div>
         </div>
       ),
@@ -46,41 +55,46 @@ export default function UserManagement() {
       key: 'status',
       header: 'Status',
       cell: (row) => {
+        const status = row.status || 'onboarding';
         const statusMap: Record<string, 'done' | 'in_progress' | 'pending'> = {
           active: 'done',
           onboarding: 'in_progress',
           paused: 'pending',
         };
-        return <StatusBadge status={statusMap[row.status]} label={row.status.charAt(0).toUpperCase() + row.status.slice(1)} />;
+        return <StatusBadge status={statusMap[status] || 'pending'} label={status.charAt(0).toUpperCase() + status.slice(1)} />;
       },
     },
     {
       key: 'team',
       header: 'Assigned Team',
-      cell: (row) => <TypeBadge type={getTeamName(row.assignedTeam)} />,
+      cell: (row) => row.team ? <TypeBadge type={row.team.name} /> : <span className="text-muted-foreground">—</span>,
     },
     {
       key: 'workflows',
       header: 'Active Workflows',
       cell: (row) => (
         <div className="flex flex-wrap gap-1">
-          {getWorkflowNames(row.activeWorkflows).map((name, i) => (
-            <Badge key={i} variant="outline" className="text-xs font-normal">
-              {name}
-            </Badge>
-          ))}
+          {row.activeWorkflows.length > 0 ? (
+            row.activeWorkflows.map((workflow) => (
+              <Badge key={workflow.id} variant="outline" className="text-xs font-normal">
+                {workflow.name}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
         </div>
       ),
     },
     {
       key: 'lastActive',
       header: 'Last Active',
-      cell: (row) => <span className="text-muted-foreground">{row.lastActive}</span>,
+      cell: (row) => <span className="text-muted-foreground">{formatDate(row.last_active_at)}</span>,
     },
   ];
 
-  // Team member columns
-  const memberColumns: DataTableColumn<TeamMember>[] = [
+  // Staff member columns
+  const memberColumns: DataTableColumn<StaffMemberWithDetails>[] = [
     {
       key: 'name',
       header: 'Name',
@@ -88,11 +102,11 @@ export default function UserManagement() {
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="text-xs bg-secondary">
-              {row.name.split(' ').map(n => n[0]).join('')}
+              {getInitials(row.full_name)}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-medium">{row.name}</p>
+            <p className="font-medium">{row.full_name || 'Unknown'}</p>
             <p className="text-sm text-muted-foreground">{row.email}</p>
           </div>
         </div>
@@ -109,53 +123,55 @@ export default function UserManagement() {
           paper: 'bg-green-100 text-green-700',
           client: 'bg-muted text-muted-foreground',
         };
-        return (
-          <Badge variant="outline" className={`font-normal ${roleColors[row.role]}`}>
-            {row.role.charAt(0).toUpperCase() + row.role.slice(1)}
+        const primaryRole = row.roles[0]?.role as AppRole | undefined;
+        return primaryRole ? (
+          <Badge variant="outline" className={`font-normal ${roleColors[primaryRole] || ''}`}>
+            {primaryRole.charAt(0).toUpperCase() + primaryRole.slice(1)}
           </Badge>
+        ) : (
+          <span className="text-muted-foreground">—</span>
         );
       },
     },
     {
       key: 'team',
       header: 'Team',
-      cell: (row) => {
-        const team = mockTeams.find(t => t.members.some(m => m.id === row.id));
-        return team ? <TypeBadge type={team.name} /> : <span className="text-muted-foreground">—</span>;
-      },
+      cell: (row) => row.team ? <TypeBadge type={row.team.name} /> : <span className="text-muted-foreground">—</span>,
     },
     {
       key: 'workflows',
       header: 'Workflow Access',
-      cell: (row) => {
-        const team = mockTeams.find(t => t.members.some(m => m.id === row.id));
-        if (!team) return <span className="text-muted-foreground">—</span>;
-        return (
-          <div className="flex flex-wrap gap-1">
-            {getWorkflowNames(team.workflowAccess).map((name, i) => (
-              <Badge key={i} variant="outline" className="text-xs font-normal">
-                {name}
+      cell: (row) => (
+        <div className="flex flex-wrap gap-1">
+          {row.workflowAccess.length > 0 ? (
+            row.workflowAccess.map((workflow) => (
+              <Badge key={workflow.id} variant="outline" className="text-xs font-normal">
+                {workflow.name}
               </Badge>
-            ))}
-          </div>
-        );
-      },
+            ))
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </div>
+      ),
     },
   ];
 
   const clientActions = [
-    { label: 'View Profile', onClick: (row: Client) => toast.info(`Viewing ${row.name}`) },
-    { label: 'Edit', onClick: (row: Client) => toast.info(`Editing ${row.name}`) },
-    { label: 'Reassign Team', onClick: (row: Client) => toast.info(`Reassigning ${row.name}`) },
-    { label: 'Pause', onClick: (row: Client) => toast.warning(`Pausing ${row.name}`), variant: 'destructive' as const },
+    { label: 'View Profile', onClick: (row: ClientWithDetails) => toast.info(`Viewing ${row.profile?.full_name}`) },
+    { label: 'Edit', onClick: (row: ClientWithDetails) => toast.info(`Editing ${row.profile?.full_name}`) },
+    { label: 'Reassign Team', onClick: (row: ClientWithDetails) => toast.info(`Reassigning ${row.profile?.full_name}`) },
+    { label: 'Pause', onClick: (row: ClientWithDetails) => toast.warning(`Pausing ${row.profile?.full_name}`), variant: 'destructive' as const },
   ];
 
   const memberActions = [
-    { label: 'View Profile', onClick: (row: TeamMember) => toast.info(`Viewing ${row.name}`) },
-    { label: 'Edit', onClick: (row: TeamMember) => toast.info(`Editing ${row.name}`) },
-    { label: 'Change Role', onClick: (row: TeamMember) => toast.info(`Changing role for ${row.name}`) },
-    { label: 'Remove', onClick: (row: TeamMember) => toast.error(`Removing ${row.name}`), variant: 'destructive' as const },
+    { label: 'View Profile', onClick: (row: StaffMemberWithDetails) => toast.info(`Viewing ${row.full_name}`) },
+    { label: 'Edit', onClick: (row: StaffMemberWithDetails) => toast.info(`Editing ${row.full_name}`) },
+    { label: 'Change Role', onClick: (row: StaffMemberWithDetails) => toast.info(`Changing role for ${row.full_name}`) },
+    { label: 'Remove', onClick: (row: StaffMemberWithDetails) => toast.error(`Removing ${row.full_name}`), variant: 'destructive' as const },
   ];
+
+  const isLoading = clientsLoading || staffLoading;
 
   return (
     <AdminLayout>
@@ -184,33 +200,53 @@ export default function UserManagement() {
             <TabsTrigger value="clients">
               Clients
               <Badge variant="secondary" className="ml-2 px-1.5 py-0.5 text-xs">
-                {mockClients.length}
+                {clients.length}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="team">
               Team Members
               <Badge variant="secondary" className="ml-2 px-1.5 py-0.5 text-xs">
-                {mockTeamMembers.length}
+                {staffMembers.length}
               </Badge>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="clients" className="mt-6">
-            <DataTable
-              data={mockClients}
-              columns={clientColumns}
-              actions={clientActions}
-              onRowClick={(row) => toast.info(`Selected: ${row.name}`)}
-            />
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : clients.length > 0 ? (
+              <DataTable
+                data={clients}
+                columns={clientColumns}
+                actions={clientActions}
+                onRowClick={(row) => toast.info(`Selected: ${row.profile?.full_name}`)}
+              />
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                No clients found
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="team" className="mt-6">
-            <DataTable
-              data={mockTeamMembers}
-              columns={memberColumns}
-              actions={memberActions}
-              onRowClick={(row) => toast.info(`Selected: ${row.name}`)}
-            />
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : staffMembers.length > 0 ? (
+              <DataTable
+                data={staffMembers}
+                columns={memberColumns}
+                actions={memberActions}
+                onRowClick={(row) => toast.info(`Selected: ${row.full_name}`)}
+              />
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                No team members found
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
