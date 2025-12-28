@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { RoleProvider } from "@/contexts/RoleContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -42,141 +43,143 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/onboarding" element={
-              <ProtectedRoute>
-                <Onboarding />
-              </ProtectedRoute>
-            } />
-            {/* Client Dashboard Routes */}
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <HomePage />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/plan" element={
-              <ProtectedRoute>
-                <PlanPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/evidence" element={
-              <ProtectedRoute>
-                <EvidencePage />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/marketplace" element={
-              <ProtectedRoute>
-                <MarketplacePage />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/messages" element={
-              <ProtectedRoute>
-                <MessagesPage />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/profile" element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            } />
-            {/* Admin Routes */}
-            <Route path="/admin" element={
-              <ProtectedRoute>
-                <AdminOverview />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/users" element={
-              <ProtectedRoute>
-                <UserManagement />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/teams" element={
-              <ProtectedRoute>
-                <TeamManagement />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/permissions" element={
-              <ProtectedRoute>
-                <WorkflowPermissions />
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/opportunities" element={
-              <ProtectedRoute>
-                <OpportunityCMS />
-              </ProtectedRoute>
-            } />
-            {/* Press Team Routes */}
-            <Route path="/command/press" element={
-              <ProtectedRoute>
-                <PressDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/command/press/tasks" element={
-              <ProtectedRoute>
-                <PressTasks />
-              </ProtectedRoute>
-            } />
-            <Route path="/command/press/queue" element={
-              <ProtectedRoute>
-                <PressQueue />
-              </ProtectedRoute>
-            } />
-            <Route path="/command/press/vendor" element={
-              <ProtectedRoute>
-                <VendorManagement />
-              </ProtectedRoute>
-            } />
-            {/* Paper Team Routes */}
-            <Route path="/command/paper" element={
-              <ProtectedRoute>
-                <PaperDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/command/paper/tasks" element={
-              <ProtectedRoute>
-                <PaperTasks />
-              </ProtectedRoute>
-            } />
-            <Route path="/command/paper/journal" element={
-              <ProtectedRoute>
-                <JournalQueue />
-              </ProtectedRoute>
-            } />
-            <Route path="/command/paper/book" element={
-              <ProtectedRoute>
-                <BookQueue />
-              </ProtectedRoute>
-            } />
-            {/* Research Team Routes */}
-            <Route path="/command/research" element={
-              <ProtectedRoute>
-                <ResearchDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/command/research/tasks" element={
-              <ProtectedRoute>
-                <ResearchTasks />
-              </ProtectedRoute>
-            } />
-            <Route path="/command/research/salary" element={
-              <ProtectedRoute>
-                <SalaryAnalysis />
-              </ProtectedRoute>
-            } />
-            <Route path="/command/research/opportunities" element={
-              <ProtectedRoute>
-                <ResearchOpportunityCMS />
-              </ProtectedRoute>
-            } />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </TooltipProvider>
+        <RoleProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/onboarding" element={
+                <ProtectedRoute>
+                  <Onboarding />
+                </ProtectedRoute>
+              } />
+              {/* Client Dashboard Routes */}
+              <Route path="/dashboard" element={
+                <ProtectedRoute>
+                  <HomePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/dashboard/plan" element={
+                <ProtectedRoute>
+                  <PlanPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/dashboard/evidence" element={
+                <ProtectedRoute>
+                  <EvidencePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/dashboard/marketplace" element={
+                <ProtectedRoute>
+                  <MarketplacePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/dashboard/messages" element={
+                <ProtectedRoute>
+                  <MessagesPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/dashboard/profile" element={
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+              } />
+              {/* Admin Routes - require admin role */}
+              <Route path="/admin" element={
+                <ProtectedRoute requireAdmin>
+                  <AdminOverview />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/users" element={
+                <ProtectedRoute requireAdmin>
+                  <UserManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/teams" element={
+                <ProtectedRoute requireAdmin>
+                  <TeamManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/permissions" element={
+                <ProtectedRoute requireAdmin>
+                  <WorkflowPermissions />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/opportunities" element={
+                <ProtectedRoute requireAdmin>
+                  <OpportunityCMS />
+                </ProtectedRoute>
+              } />
+              {/* Press Team Routes - require press or admin role */}
+              <Route path="/command/press" element={
+                <ProtectedRoute requiredRoles={['press', 'admin']}>
+                  <PressDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/command/press/tasks" element={
+                <ProtectedRoute requiredRoles={['press', 'admin']}>
+                  <PressTasks />
+                </ProtectedRoute>
+              } />
+              <Route path="/command/press/queue" element={
+                <ProtectedRoute requiredRoles={['press', 'admin']}>
+                  <PressQueue />
+                </ProtectedRoute>
+              } />
+              <Route path="/command/press/vendor" element={
+                <ProtectedRoute requiredRoles={['press', 'admin']}>
+                  <VendorManagement />
+                </ProtectedRoute>
+              } />
+              {/* Paper Team Routes - require paper or admin role */}
+              <Route path="/command/paper" element={
+                <ProtectedRoute requiredRoles={['paper', 'admin']}>
+                  <PaperDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/command/paper/tasks" element={
+                <ProtectedRoute requiredRoles={['paper', 'admin']}>
+                  <PaperTasks />
+                </ProtectedRoute>
+              } />
+              <Route path="/command/paper/journal" element={
+                <ProtectedRoute requiredRoles={['paper', 'admin']}>
+                  <JournalQueue />
+                </ProtectedRoute>
+              } />
+              <Route path="/command/paper/book" element={
+                <ProtectedRoute requiredRoles={['paper', 'admin']}>
+                  <BookQueue />
+                </ProtectedRoute>
+              } />
+              {/* Research Team Routes - require research or admin role */}
+              <Route path="/command/research" element={
+                <ProtectedRoute requiredRoles={['research', 'admin']}>
+                  <ResearchDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/command/research/tasks" element={
+                <ProtectedRoute requiredRoles={['research', 'admin']}>
+                  <ResearchTasks />
+                </ProtectedRoute>
+              } />
+              <Route path="/command/research/salary" element={
+                <ProtectedRoute requiredRoles={['research', 'admin']}>
+                  <SalaryAnalysis />
+                </ProtectedRoute>
+              } />
+              <Route path="/command/research/opportunities" element={
+                <ProtectedRoute requiredRoles={['research', 'admin']}>
+                  <ResearchOpportunityCMS />
+                </ProtectedRoute>
+              } />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </TooltipProvider>
+        </RoleProvider>
       </AuthProvider>
     </BrowserRouter>
   </QueryClientProvider>

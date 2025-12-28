@@ -23,6 +23,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useRole } from '@/contexts/RoleContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface MenuItem {
@@ -107,16 +108,17 @@ const roleMenus: Record<string, MenuGroup[]> = {
 function CommandSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useRole();
+  const { user } = useRole();
+  const { signOut } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
 
-  const role = user?.role || 'press';
+  const role = user?.primaryRole || 'press';
   const menuGroups = roleMenus[role] || roleMenus.press;
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
   };
 
   const initials = user?.name

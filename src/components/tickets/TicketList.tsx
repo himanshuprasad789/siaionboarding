@@ -1,37 +1,42 @@
 import { DataTable, DataTableColumn, StatusBadge, TypeBadge } from '@/components/ui/data-table';
 import { Badge } from '@/components/ui/badge';
-import { Ticket, getWorkflowSteps } from '@/data/mockWorkflowData';
+import { Ticket } from '@/hooks/useTickets';
 import { toast } from 'sonner';
+import { Database } from '@/integrations/supabase/types';
+
+type TicketStatus = Database["public"]["Enums"]["ticket_status"];
+type TicketPriority = Database["public"]["Enums"]["ticket_priority"];
 
 interface TicketListProps {
   tickets: Ticket[];
   onTicketClick?: (ticket: Ticket) => void;
+  isLoading?: boolean;
 }
 
-export function TicketList({ tickets, onTicketClick }: TicketListProps) {
-  const getStatusType = (status: Ticket['status']): 'done' | 'in_progress' | 'waiting' | 'pending' => {
+export function TicketList({ tickets, onTicketClick, isLoading }: TicketListProps) {
+  const getStatusType = (status: TicketStatus): 'done' | 'in_progress' | 'waiting' | 'pending' => {
     switch (status) {
-      case 'completed':
+      case 'closed':
         return 'done';
       case 'in_progress':
         return 'in_progress';
-      case 'waiting_client':
-      case 'waiting_team':
+      case 'pending_review':
         return 'waiting';
+      case 'open':
       default:
         return 'pending';
     }
   };
 
-  const getStatusLabel = (status: Ticket['status']) => {
+  const getStatusLabel = (status: TicketStatus) => {
     switch (status) {
-      case 'waiting_client':
-        return 'Waiting Client';
-      case 'waiting_team':
-        return 'Waiting Team';
+      case 'open':
+        return 'Open';
+      case 'pending_review':
+        return 'Pending Review';
       case 'in_progress':
         return 'In Progress';
-      case 'completed':
+      case 'closed':
         return 'Done';
       default:
         return status;
@@ -45,14 +50,14 @@ export function TicketList({ tickets, onTicketClick }: TicketListProps) {
       cell: (row) => (
         <div>
           <p className="font-medium">{row.title}</p>
-          <p className="text-sm text-muted-foreground">{row.clientName}</p>
+          <p className="text-sm text-muted-foreground">{row.client_name || 'Unknown Client'}</p>
         </div>
       ),
     },
     {
       key: 'type',
-      header: 'Workflow Type',
-      cell: (row) => <TypeBadge type={row.workflowType} />,
+      header: 'Team',
+      cell: (row) => <TypeBadge type={row.assigned_team || 'unassigned'} />,
     },
     {
       key: 'status',
@@ -65,19 +70,11 @@ export function TicketList({ tickets, onTicketClick }: TicketListProps) {
       ),
     },
     {
-      key: 'step',
-      header: 'Current Step',
-      cell: (row) => {
-        const steps = getWorkflowSteps(row.workflowType);
-        const currentStepName = steps[row.currentStep]?.name || 'Unknown';
-        return <span className="text-muted-foreground">{currentStepName}</span>;
-      },
-    },
-    {
       key: 'priority',
       header: 'Priority',
       cell: (row) => {
-        const priorityColors = {
+        const priorityColors: Record<TicketPriority, string> = {
+          urgent: 'bg-red-100 text-red-700',
           high: 'bg-red-100 text-red-700',
           medium: 'bg-amber-100 text-amber-700',
           low: 'bg-green-100 text-green-700',
@@ -92,7 +89,7 @@ export function TicketList({ tickets, onTicketClick }: TicketListProps) {
     {
       key: 'assignedTo',
       header: 'Assigned To',
-      cell: (row) => <span className="text-muted-foreground">{row.assignedTo}</span>,
+      cell: (row) => <span className="text-muted-foreground">{row.assigned_to_name || 'Unassigned'}</span>,
     },
   ];
 
