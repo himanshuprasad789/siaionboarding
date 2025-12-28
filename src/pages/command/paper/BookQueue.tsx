@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { CommandCenterLayout } from '@/components/command/CommandCenterLayout';
 import { TicketList } from '@/components/tickets/TicketList';
-import { TicketDetail } from '@/components/tickets/TicketDetail';
-import { getTicketsByWorkflow, bookWorkflow, Ticket } from '@/data/mockWorkflowData';
+import { useTicketsByTeam, Ticket } from '@/hooks/useTickets';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Building2, Truck } from 'lucide-react';
+import { BookOpen, Building2, Truck, Loader2 } from 'lucide-react';
 
 const distributionChannels = [
   { name: 'Amazon KDP', status: 'Active', books: 12 },
@@ -17,7 +16,7 @@ const distributionChannels = [
 
 export default function BookQueue() {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const tickets = getTicketsByWorkflow('book');
+  const { data: tickets = [], isLoading } = useTicketsByTeam('paper');
 
   return (
     <CommandCenterLayout>
@@ -39,10 +38,16 @@ export default function BookQueue() {
             <CardDescription>Books currently in the pipeline</CardDescription>
           </CardHeader>
           <CardContent>
-            <TicketList 
-              tickets={tickets} 
-              onTicketClick={(ticket) => setSelectedTicket(ticket)} 
-            />
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <TicketList 
+                tickets={tickets} 
+                onTicketClick={(ticket) => setSelectedTicket(ticket)} 
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -97,11 +102,10 @@ export default function BookQueue() {
         <Dialog open={!!selectedTicket} onOpenChange={() => setSelectedTicket(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             {selectedTicket && (
-              <TicketDetail
-                ticket={selectedTicket}
-                workflowSteps={bookWorkflow}
-                onStepComplete={() => setSelectedTicket(null)}
-              />
+              <div className="space-y-4">
+                <h2 className="text-xl font-bold">{selectedTicket.title}</h2>
+                <p className="text-muted-foreground">{selectedTicket.description}</p>
+              </div>
             )}
           </DialogContent>
         </Dialog>
