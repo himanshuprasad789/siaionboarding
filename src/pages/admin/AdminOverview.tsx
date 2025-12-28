@@ -1,36 +1,55 @@
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Shield, Sparkles, Activity } from 'lucide-react';
-import { mockTeams, mockWorkflows, mockOpportunities } from '@/data/mockAdminData';
-
-const stats = [
-  { 
-    label: 'Total Teams', 
-    value: mockTeams.length, 
-    icon: Users, 
-    color: 'text-blue-500' 
-  },
-  { 
-    label: 'Active Workflows', 
-    value: mockWorkflows.length, 
-    icon: Activity, 
-    color: 'text-green-500' 
-  },
-  { 
-    label: 'Total Opportunities', 
-    value: mockOpportunities.length, 
-    icon: Sparkles, 
-    color: 'text-amber-500' 
-  },
-  { 
-    label: 'Permission Rules', 
-    value: 18, 
-    icon: Shield, 
-    color: 'text-purple-500' 
-  },
-];
+import { Users, Shield, Sparkles, Activity, Loader2 } from 'lucide-react';
+import { useAdminStats, useRecentActivity } from '@/hooks/useAdminData';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function AdminOverview() {
+  const { data: stats, isLoading: statsLoading } = useAdminStats();
+  const { data: activityLog = [], isLoading: activityLoading } = useRecentActivity();
+
+  const statItems = [
+    { 
+      label: 'Total Teams', 
+      value: stats?.teams ?? 0, 
+      icon: Users, 
+      color: 'text-blue-500' 
+    },
+    { 
+      label: 'Active Workflows', 
+      value: stats?.workflows ?? 0, 
+      icon: Activity, 
+      color: 'text-green-500' 
+    },
+    { 
+      label: 'Total Opportunities', 
+      value: stats?.opportunities ?? 0, 
+      icon: Sparkles, 
+      color: 'text-amber-500' 
+    },
+    { 
+      label: 'Permission Rules', 
+      value: stats?.permissions ?? 0, 
+      icon: Shield, 
+      color: 'text-purple-500' 
+    },
+  ];
+
+  const formatActivityTime = (timestamp: string) => {
+    try {
+      return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+    } catch {
+      return 'Unknown';
+    }
+  };
+
+  const getActivityDescription = (activity: { action: string; entity_type: string; metadata?: unknown }) => {
+    const metadata = typeof activity.metadata === 'object' && activity.metadata !== null 
+      ? activity.metadata as Record<string, string> 
+      : undefined;
+    return metadata?.description || `${activity.action} on ${activity.entity_type}`;
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -42,7 +61,7 @@ export default function AdminOverview() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {stats.map((stat) => (
+          {statItems.map((stat) => (
             <Card key={stat.label}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -51,7 +70,11 @@ export default function AdminOverview() {
                 <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
+                {statsLoading ? (
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                ) : (
+                  <div className="text-2xl font-bold">{stat.value}</div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -64,22 +87,27 @@ export default function AdminOverview() {
               <CardDescription>Latest changes in the system</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {[
-                  { action: 'Permission updated', detail: 'Press → Drafting stage', time: '2 hours ago' },
-                  { action: 'Team member added', detail: 'Alice joined Press Team', time: '5 hours ago' },
-                  { action: 'Opportunity created', detail: 'AI Summit 2025 Speaker', time: '1 day ago' },
-                  { action: 'Workflow modified', detail: 'Added vendor stage', time: '2 days ago' },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                    <div>
-                      <p className="text-sm font-medium">{item.action}</p>
-                      <p className="text-xs text-muted-foreground">{item.detail}</p>
+              {activityLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : activityLog.length > 0 ? (
+                <div className="space-y-4">
+                  {activityLog.slice(0, 4).map((activity) => (
+                    <div key={activity.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                      <div>
+                        <p className="text-sm font-medium capitalize">{activity.action.replace('_', ' ')}</p>
+                        <p className="text-xs text-muted-foreground">{getActivityDescription(activity)}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{formatActivityTime(activity.created_at)}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground">{item.time}</span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No recent activity
+                </div>
+              )}
             </CardContent>
           </Card>
 
