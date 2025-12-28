@@ -3,11 +3,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { RoleProvider } from "@/contexts/RoleContext";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
+import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
-import MockLogin from "./pages/MockLogin";
 import HomePage from "./pages/dashboard/HomePage";
 import PlanPage from "./pages/dashboard/PlanPage";
 import EvidencePage from "./pages/dashboard/EvidencePage";
@@ -40,47 +41,143 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <RoleProvider>
+      <AuthProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/login" element={<MockLogin />} />
-            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/onboarding" element={
+              <ProtectedRoute>
+                <Onboarding />
+              </ProtectedRoute>
+            } />
             {/* Client Dashboard Routes */}
-            <Route path="/dashboard" element={<HomePage />} />
-            <Route path="/dashboard/plan" element={<PlanPage />} />
-            <Route path="/dashboard/evidence" element={<EvidencePage />} />
-            <Route path="/dashboard/marketplace" element={<MarketplacePage />} />
-            <Route path="/dashboard/messages" element={<MessagesPage />} />
-            <Route path="/dashboard/profile" element={<ProfilePage />} />
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <HomePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/plan" element={
+              <ProtectedRoute>
+                <PlanPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/evidence" element={
+              <ProtectedRoute>
+                <EvidencePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/marketplace" element={
+              <ProtectedRoute>
+                <MarketplacePage />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/messages" element={
+              <ProtectedRoute>
+                <MessagesPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/profile" element={
+              <ProtectedRoute>
+                <ProfilePage />
+              </ProtectedRoute>
+            } />
             {/* Admin Routes */}
-            <Route path="/admin" element={<AdminOverview />} />
-            <Route path="/admin/users" element={<UserManagement />} />
-            <Route path="/admin/teams" element={<TeamManagement />} />
-            <Route path="/admin/permissions" element={<WorkflowPermissions />} />
-            <Route path="/admin/opportunities" element={<OpportunityCMS />} />
+            <Route path="/admin" element={
+              <ProtectedRoute>
+                <AdminOverview />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/users" element={
+              <ProtectedRoute>
+                <UserManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/teams" element={
+              <ProtectedRoute>
+                <TeamManagement />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/permissions" element={
+              <ProtectedRoute>
+                <WorkflowPermissions />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/opportunities" element={
+              <ProtectedRoute>
+                <OpportunityCMS />
+              </ProtectedRoute>
+            } />
             {/* Press Team Routes */}
-            <Route path="/command/press" element={<PressDashboard />} />
-            <Route path="/command/press/tasks" element={<PressTasks />} />
-            <Route path="/command/press/queue" element={<PressQueue />} />
-            <Route path="/command/press/vendor" element={<VendorManagement />} />
+            <Route path="/command/press" element={
+              <ProtectedRoute>
+                <PressDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/command/press/tasks" element={
+              <ProtectedRoute>
+                <PressTasks />
+              </ProtectedRoute>
+            } />
+            <Route path="/command/press/queue" element={
+              <ProtectedRoute>
+                <PressQueue />
+              </ProtectedRoute>
+            } />
+            <Route path="/command/press/vendor" element={
+              <ProtectedRoute>
+                <VendorManagement />
+              </ProtectedRoute>
+            } />
             {/* Paper Team Routes */}
-            <Route path="/command/paper" element={<PaperDashboard />} />
-            <Route path="/command/paper/tasks" element={<PaperTasks />} />
-            <Route path="/command/paper/journal" element={<JournalQueue />} />
-            <Route path="/command/paper/book" element={<BookQueue />} />
+            <Route path="/command/paper" element={
+              <ProtectedRoute>
+                <PaperDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/command/paper/tasks" element={
+              <ProtectedRoute>
+                <PaperTasks />
+              </ProtectedRoute>
+            } />
+            <Route path="/command/paper/journal" element={
+              <ProtectedRoute>
+                <JournalQueue />
+              </ProtectedRoute>
+            } />
+            <Route path="/command/paper/book" element={
+              <ProtectedRoute>
+                <BookQueue />
+              </ProtectedRoute>
+            } />
             {/* Research Team Routes */}
-            <Route path="/command/research" element={<ResearchDashboard />} />
-            <Route path="/command/research/tasks" element={<ResearchTasks />} />
-            <Route path="/command/research/salary" element={<SalaryAnalysis />} />
-            <Route path="/command/research/opportunities" element={<ResearchOpportunityCMS />} />
+            <Route path="/command/research" element={
+              <ProtectedRoute>
+                <ResearchDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/command/research/tasks" element={
+              <ProtectedRoute>
+                <ResearchTasks />
+              </ProtectedRoute>
+            } />
+            <Route path="/command/research/salary" element={
+              <ProtectedRoute>
+                <SalaryAnalysis />
+              </ProtectedRoute>
+            } />
+            <Route path="/command/research/opportunities" element={
+              <ProtectedRoute>
+                <ResearchOpportunityCMS />
+              </ProtectedRoute>
+            } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-      </RoleProvider>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
