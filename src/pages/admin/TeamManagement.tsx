@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Dialog, 
   DialogContent, 
@@ -22,17 +23,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Users, Trash2, UserPlus, Loader2 } from 'lucide-react';
+import { Plus, Users, Trash2, UserPlus, Loader2, Settings } from 'lucide-react';
 import { useTeams, TeamWithWorkflows } from '@/hooks/useTeams';
 import { useStaffMembers, StaffMemberWithDetails } from '@/hooks/useAdminData';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 type AppRole = Database["public"]["Enums"]["app_role"];
+type WorkflowRow = Database["public"]["Tables"]["workflows"]["Row"];
 
 export default function TeamManagement() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: teams = [], isLoading: teamsLoading } = useTeams();
   const { data: staffMembers = [], isLoading: staffLoading } = useStaffMembers();
@@ -41,6 +45,22 @@ export default function TeamManagement() {
   const [newTeamDesc, setNewTeamDesc] = useState('');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedMemberByTeam, setSelectedMemberByTeam] = useState<Record<string, string>>({});
+  const [workflowDialogTeamId, setWorkflowDialogTeamId] = useState<string | null>(null);
+  const [selectedWorkflows, setSelectedWorkflows] = useState<string[]>([]);
+
+  // Fetch all workflows
+  const { data: allWorkflows = [] } = useQuery({
+    queryKey: ['all-workflows'],
+    queryFn: async (): Promise<WorkflowRow[]> => {
+      const { data, error } = await supabase
+        .from('workflows')
+        .select('*')
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
 
   const createTeamMutation = useMutation({
     mutationFn: async ({ name, description }: { name: string; description: string }) => {
@@ -98,6 +118,38 @@ export default function TeamManagement() {
     },
   });
 
+  const updateWorkflowAccessMutation = useMutation({
+    mutationFn: async ({ teamId, workflowIds }: { teamId: string; workflowIds: string[] }) => {
+      // Delete existing access
+      const { error: deleteError } = await supabase
+        .from('team_workflow_access')
+        .delete()
+        .eq('team_id', teamId);
+      if (deleteError) throw deleteError;
+
+      // Insert new access
+      if (workflowIds.length > 0) {
+        const inserts = workflowIds.map(workflowId => ({
+          team_id: teamId,
+          workflow_id: workflowId,
+        }));
+        const { error: insertError } = await supabase
+          .from('team_workflow_access')
+          .insert(inserts);
+        if (insertError) throw insertError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      setWorkflowDialogTeamId(null);
+      toast.success('Workflow access updated');
+    },
+    onError: (error) => {
+      console.error('Error updating workflow access:', error);
+      toast.error('Failed to update workflow access');
+    },
+  });
+
   const handleCreateTeam = () => {
     if (!newTeamName.trim()) {
       toast.error('Please enter a team name');
@@ -122,6 +174,27 @@ export default function TeamManagement() {
   const handleRemoveMember = (memberId: string) => {
     updateMemberTeamMutation.mutate({ memberId, teamId: null });
     toast.success('Member removed from team');
+  };
+
+  const openWorkflowDialog = (team: TeamWithWorkflows) => {
+    setWorkflowDialogTeamId(team.id);
+    setSelectedWorkflows(team.workflowAccess.map(w => w.id));
+  };
+
+  const handleSaveWorkflows = () => {
+    if (!workflowDialogTeamId) return;
+    updateWorkflowAccessMutation.mutate({ 
+      teamId: workflowDialogTeamId, 
+      workflowIds: selectedWorkflows 
+    });
+  };
+
+  const toggleWorkflow = (workflowId: string) => {
+    setSelectedWorkflows(prev => 
+      prev.includes(workflowId) 
+        ? prev.filter(id => id !== workflowId)
+        : [...prev, workflowId]
+    );
   };
 
   const getTeamMembers = (teamId: string): StaffMemberWithDetails[] => {
@@ -154,6 +227,8 @@ export default function TeamManagement() {
     );
   }
 
+  const currentTeamForDialog = teams.find(t => t.id === workflowDialogTeamId);
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -161,7 +236,7 @@ export default function TeamManagement() {
           <div>
             <h1 className="text-3xl font-display font-bold tracking-tight">Team Management</h1>
             <p className="text-muted-foreground mt-1">
-              Create teams and manage team memberships.
+              Create teams, manage members, and assign workflow access.
             </p>
           </div>
           
@@ -211,6 +286,48 @@ export default function TeamManagement() {
           </Dialog>
         </div>
 
+        {/* Workflow Access Dialog */}
+        <Dialog open={!!workflowDialogTeamId} onOpenChange={(open) => !open && setWorkflowDialogTeamId(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Manage Workflow Access</DialogTitle>
+              <DialogDescription>
+                Select which workflows "{currentTeamForDialog?.name}" team can access.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-4 max-h-[300px] overflow-y-auto">
+              {allWorkflows.map((workflow) => (
+                <div key={workflow.id} className="flex items-center space-x-3">
+                  <Checkbox
+                    id={workflow.id}
+                    checked={selectedWorkflows.includes(workflow.id)}
+                    onCheckedChange={() => toggleWorkflow(workflow.id)}
+                  />
+                  <div className="flex-1">
+                    <label htmlFor={workflow.id} className="text-sm font-medium cursor-pointer">
+                      {workflow.name}
+                    </label>
+                    {workflow.description && (
+                      <p className="text-xs text-muted-foreground">{workflow.description}</p>
+                    )}
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {workflow.team}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setWorkflowDialogTeamId(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveWorkflows} disabled={updateWorkflowAccessMutation.isPending}>
+                {updateWorkflowAccessMutation.isPending ? 'Saving...' : 'Save Access'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {teams.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             No teams found. Create your first team to get started.
@@ -236,14 +353,25 @@ export default function TeamManagement() {
                           </CardDescription>
                         </div>
                       </div>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => handleDeleteTeam(team.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => openWorkflowDialog(team)}
+                          title="Manage Workflows"
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDeleteTeam(team.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <p className="text-sm text-muted-foreground mt-2">
                       {team.description || 'No description'}
@@ -251,19 +379,28 @@ export default function TeamManagement() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {/* Workflow Access */}
-                    <div className="flex flex-wrap gap-1">
-                      {team.workflowAccess.map((workflow) => (
-                        <Badge key={workflow.id} variant="outline" className="text-xs">
-                          {workflow.name}
-                        </Badge>
-                      ))}
-                      {team.workflowAccess.length === 0 && (
-                        <span className="text-xs text-muted-foreground">No workflow access</span>
-                      )}
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Workflow Access</p>
+                      <div className="flex flex-wrap gap-1">
+                        {team.workflowAccess.map((workflow) => (
+                          <Badge key={workflow.id} variant="outline" className="text-xs">
+                            {workflow.name}
+                          </Badge>
+                        ))}
+                        {team.workflowAccess.length === 0 && (
+                          <button 
+                            onClick={() => openWorkflowDialog(team)}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            + Add workflows
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Members List */}
                     <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Team Members</p>
                       {teamMembers.map((member) => {
                         const primaryRole = member.roles[0]?.role as AppRole | undefined;
                         return (

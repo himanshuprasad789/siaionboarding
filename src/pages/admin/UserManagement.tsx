@@ -5,18 +5,93 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Plus, Columns, Loader2 } from 'lucide-react';
 import { useClientsWithDetails, useStaffMembers, ClientWithDetails, StaffMemberWithDetails } from '@/hooks/useAdminData';
+import { useTeams } from '@/hooks/useTeams';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
-type AppRole = 'admin' | 'press' | 'research' | 'paper' | 'client';
+type AppRole = Database["public"]["Enums"]["app_role"];
 
 export default function UserManagement() {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('clients');
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedRole, setSelectedRole] = useState<AppRole | ''>('');
+  const [selectedTeamId, setSelectedTeamId] = useState('');
   
   const { data: clients = [], isLoading: clientsLoading } = useClientsWithDetails();
   const { data: staffMembers = [], isLoading: staffLoading } = useStaffMembers();
+  const { data: teams = [] } = useTeams();
+
+  // Get all profiles that don't have a staff role yet
+  const availableProfiles = staffMembers.filter(m => m.roles.length === 0);
+
+  const addRoleMutation = useMutation({
+    mutationFn: async ({ userId, role, teamId }: { userId: string; role: AppRole; teamId?: string }) => {
+      // Add role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role });
+      if (roleError) throw roleError;
+
+      // Update team if provided
+      if (teamId) {
+        const { error: teamError } = await supabase
+          .from('profiles')
+          .update({ team_id: teamId })
+          .eq('id', userId);
+        if (teamError) throw teamError;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff-members'] });
+      queryClient.invalidateQueries({ queryKey: ['clients-with-details'] });
+      setIsAddUserOpen(false);
+      setSelectedUserId('');
+      setSelectedRole('');
+      setSelectedTeamId('');
+      toast.success('User role assigned successfully');
+    },
+    onError: (error) => {
+      console.error('Error adding role:', error);
+      toast.error('Failed to assign role');
+    },
+  });
+
+  const handleAddUser = () => {
+    if (!selectedUserId || !selectedRole) {
+      toast.error('Please select a user and role');
+      return;
+    }
+    addRoleMutation.mutate({ 
+      userId: selectedUserId, 
+      role: selectedRole as AppRole, 
+      teamId: selectedTeamId || undefined 
+    });
+  };
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return '??';
@@ -188,10 +263,76 @@ export default function UserManagement() {
               <Columns className="h-4 w-4" />
               Customize Columns
             </Button>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Add User
-            </Button>
+            <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add User
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Assign Role to User</DialogTitle>
+                  <DialogDescription>
+                    Users must sign up first before being assigned a role. Select a registered user and assign them a staff role.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>User Email</Label>
+                    <Input 
+                      placeholder="Enter email of registered user"
+                      value={selectedUserId ? staffMembers.find(m => m.id === selectedUserId)?.email || '' : ''}
+                      onChange={(e) => {
+                        const email = e.target.value;
+                        const found = staffMembers.find(m => m.email === email);
+                        setSelectedUserId(found?.id || '');
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      User must have signed up before they can be assigned a role.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Role</Label>
+                    <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as AppRole)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="press">Press</SelectItem>
+                        <SelectItem value="research">Research</SelectItem>
+                        <SelectItem value="paper">Paper</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Team (Optional)</Label>
+                    <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Assign to team..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {teams.map((team) => (
+                          <SelectItem key={team.id} value={team.id}>
+                            {team.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsAddUserOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleAddUser} disabled={addRoleMutation.isPending || !selectedRole}>
+                    {addRoleMutation.isPending ? 'Assigning...' : 'Assign Role'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -225,7 +366,7 @@ export default function UserManagement() {
               />
             ) : (
               <div className="text-center py-12 text-muted-foreground">
-                No clients found
+                No clients found. Clients appear here after they complete signup.
               </div>
             )}
           </TabsContent>
@@ -244,7 +385,7 @@ export default function UserManagement() {
               />
             ) : (
               <div className="text-center py-12 text-muted-foreground">
-                No team members found
+                No team members found. Use "Add User" to assign roles to registered users.
               </div>
             )}
           </TabsContent>
