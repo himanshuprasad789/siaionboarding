@@ -15,6 +15,10 @@ import {
   Loader2,
   Check
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { addWeeks } from 'date-fns';
 
 const QUESTIONS = [
   {
@@ -197,6 +201,7 @@ function extractKeywords(data: Record<string, string>) {
 
 export function StepSIAI() {
   const { data, updateSIAI, updateGeneratedTitles, setCurrentStep } = useOnboarding();
+  const { user } = useAuth();
   const [expandedQuestions, setExpandedQuestions] = useState<string[]>(['fieldsIndustries']);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -215,20 +220,89 @@ export function StepSIAI() {
   const canGenerate = answeredCount >= 3;
 
   const handleGenerate = async () => {
+    if (!user) {
+      toast.error('You must be logged in');
+      return;
+    }
+
     setIsGenerating(true);
     
-    // Simulate AI processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const titles = generateTitles(
-      data.siai as unknown as Record<string, string>,
-      data.niche.specificNiche,
-      data.essentials.jobTitle
-    );
-    
-    updateGeneratedTitles(titles);
-    setIsGenerating(false);
-    setShowResults(true);
+    try {
+      // Generate titles
+      const titles = generateTitles(
+        data.siai as unknown as Record<string, string>,
+        data.niche.specificNiche,
+        data.essentials.jobTitle
+      );
+      
+      // Get client profile
+      const { data: clientProfile, error: profileError } = await supabase
+        .from('client_profiles')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profileError || !clientProfile) {
+        // Create client profile if it doesn't exist
+        const { data: newProfile, error: createError } = await supabase
+          .from('client_profiles')
+          .insert({
+            user_id: user.id,
+            current_title: data.essentials.jobTitle,
+            years_experience: data.essentials.yearsExperience,
+            niche: data.niche.specificNiche,
+            onboarding_step: 4,
+          })
+          .select('id')
+          .single();
+
+        if (createError) throw createError;
+        
+        await createTicketsForClient(newProfile.id, titles);
+      } else {
+        await createTicketsForClient(clientProfile.id, titles);
+      }
+      
+      updateGeneratedTitles(titles);
+      toast.success('Generated titles and created tickets!');
+    } catch (error: any) {
+      console.error('Error generating titles:', error);
+      toast.error('Failed to create tickets');
+    } finally {
+      setIsGenerating(false);
+      setShowResults(true);
+    }
+  };
+
+  const createTicketsForClient = async (clientId: string, titles: { paperTitles: string[]; pressReleaseTitles: string[] }) => {
+    const dueDate = addWeeks(new Date(), 2).toISOString();
+
+    // Create 20 paper tickets
+    const paperTickets = titles.paperTitles.map((title, index) => ({
+      client_id: clientId,
+      title: `Paper: ${title}`,
+      description: `Draft and publish a research paper on: ${title}`,
+      assigned_team: 'paper',
+      priority: index < 5 ? 'high' as const : 'medium' as const,
+      status: 'open' as const,
+      due_date: dueDate,
+    }));
+
+    // Create 10 press tickets
+    const pressTickets = titles.pressReleaseTitles.map((title, index) => ({
+      client_id: clientId,
+      title: `Press: ${title}`,
+      description: `Create and distribute a press release for: ${title}`,
+      assigned_team: 'press',
+      priority: index < 3 ? 'high' as const : 'medium' as const,
+      status: 'open' as const,
+      due_date: dueDate,
+    }));
+
+    const allTickets = [...paperTickets, ...pressTickets];
+
+    const { error } = await supabase.from('tickets').insert(allTickets);
+    if (error) throw error;
   };
 
   return (
