@@ -123,14 +123,9 @@ const App = () => (
                   <PressTasks />
                 </ProtectedRoute>
               } />
-              <Route path="/command/press/queue" element={
+              <Route path="/command/press/workflow/:workflowId" element={
                 <ProtectedRoute requiredRoles={['press', 'admin']}>
                   <PressQueue />
-                </ProtectedRoute>
-              } />
-              <Route path="/command/press/vendor" element={
-                <ProtectedRoute requiredRoles={['press', 'admin']}>
-                  <VendorManagement />
                 </ProtectedRoute>
               } />
               {/* Paper Team Routes - require paper or admin role */}
@@ -144,14 +139,9 @@ const App = () => (
                   <PaperTasks />
                 </ProtectedRoute>
               } />
-              <Route path="/command/paper/journal" element={
+              <Route path="/command/paper/workflow/:workflowId" element={
                 <ProtectedRoute requiredRoles={['paper', 'admin']}>
                   <JournalQueue />
-                </ProtectedRoute>
-              } />
-              <Route path="/command/paper/book" element={
-                <ProtectedRoute requiredRoles={['paper', 'admin']}>
-                  <BookQueue />
                 </ProtectedRoute>
               } />
               {/* Research Team Routes - require research or admin role */}
@@ -165,14 +155,9 @@ const App = () => (
                   <ResearchTasks />
                 </ProtectedRoute>
               } />
-              <Route path="/command/research/salary" element={
+              <Route path="/command/research/workflow/:workflowId" element={
                 <ProtectedRoute requiredRoles={['research', 'admin']}>
                   <SalaryAnalysis />
-                </ProtectedRoute>
-              } />
-              <Route path="/command/research/opportunities" element={
-                <ProtectedRoute requiredRoles={['research', 'admin']}>
-                  <ResearchOpportunityCMS />
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
