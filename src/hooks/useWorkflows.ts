@@ -147,3 +147,143 @@ export function useClientWorkflows() {
     enabled: !!user?.id,
   });
 }
+
+/**
+ * Fetch workflows accessible to the current user based on:
+ * 1. team_workflow_access table (if user has a team_id)
+ * 2. OR workflows matching user's roles
+ */
+export function useAccessibleWorkflows() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["accessible-workflows", user?.id],
+    queryFn: async (): Promise<WorkflowWithStages[]> => {
+      if (!user?.id) return [];
+
+      // First, get the user's profile to find their team_id
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("team_id")
+        .eq("id", user.id)
+        .single();
+
+      // Get user's roles
+      const { data: userRoles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+
+      const roles = userRoles?.map((r) => r.role) || [];
+      const isAdmin = roles.includes("admin");
+
+      let workflowIds: string[] = [];
+
+      // If admin, get all active workflows
+      if (isAdmin) {
+        const { data: allWorkflows } = await supabase
+          .from("workflows")
+          .select("id")
+          .eq("is_active", true);
+        workflowIds = allWorkflows?.map((w) => w.id) || [];
+      } else {
+        // Get workflows from team_workflow_access if user has a team
+        if (profile?.team_id) {
+          const { data: teamAccess } = await supabase
+            .from("team_workflow_access")
+            .select("workflow_id")
+            .eq("team_id", profile.team_id);
+          
+          if (teamAccess && teamAccess.length > 0) {
+            workflowIds = teamAccess.map((a) => a.workflow_id);
+          }
+        }
+
+        // Also include workflows that match user's roles (team field matches role)
+        const staffRoles = roles.filter((r) => r !== "client");
+        if (staffRoles.length > 0) {
+          const { data: roleWorkflows } = await supabase
+            .from("workflows")
+            .select("id")
+            .in("team", staffRoles)
+            .eq("is_active", true);
+          
+          if (roleWorkflows) {
+            const roleWorkflowIds = roleWorkflows.map((w) => w.id);
+            workflowIds = [...new Set([...workflowIds, ...roleWorkflowIds])];
+          }
+        }
+      }
+
+      if (workflowIds.length === 0) return [];
+
+      // Fetch full workflow data with stages
+      const { data: workflows, error } = await supabase
+        .from("workflows")
+        .select("*")
+        .in("id", workflowIds)
+        .eq("is_active", true)
+        .order("name");
+
+      if (error) {
+        console.error("Error fetching accessible workflows:", error);
+        throw error;
+      }
+
+      // Fetch stages for each workflow
+      const workflowsWithStages = await Promise.all(
+        (workflows || []).map(async (workflow) => {
+          const { data: stages } = await supabase
+            .from("workflow_stages")
+            .select("*")
+            .eq("workflow_id", workflow.id)
+            .order("order_index");
+
+          return {
+            ...workflow,
+            stages: stages || [],
+          };
+        })
+      );
+
+      return workflowsWithStages;
+    },
+    enabled: !!user?.id,
+  });
+}
+
+export function useWorkflowById(workflowId: string | undefined) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["workflow", workflowId],
+    queryFn: async (): Promise<WorkflowWithStages | null> => {
+      if (!workflowId) return null;
+
+      const { data: workflow, error } = await supabase
+        .from("workflows")
+        .select("*")
+        .eq("id", workflowId)
+        .single();
+
+      if (error) {
+        console.error("Error fetching workflow:", error);
+        throw error;
+      }
+
+      if (!workflow) return null;
+
+      const { data: stages } = await supabase
+        .from("workflow_stages")
+        .select("*")
+        .eq("workflow_id", workflowId)
+        .order("order_index");
+
+      return {
+        ...workflow,
+        stages: stages || [],
+      };
+    },
+    enabled: !!user && !!workflowId,
+  });
+}
