@@ -1,8 +1,7 @@
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  Home, ClipboardList, Newspaper, Users, FileText, BookOpen, 
-  Search, DollarSign, Compass, Settings, LogOut, ChevronRight
+  Home, ClipboardList, Settings, LogOut, Loader2, FileText
 } from 'lucide-react';
 import {
   Sidebar,
@@ -21,10 +20,9 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { useRole } from '@/contexts/RoleContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useWorkflowsByTeam } from '@/hooks/useWorkflows';
 
 interface MenuItem {
   title: string;
@@ -37,74 +35,6 @@ interface MenuGroup {
   items: MenuItem[];
 }
 
-// Role-specific menu configurations
-const roleMenus: Record<string, MenuGroup[]> = {
-  press: [
-    {
-      label: 'Overview',
-      items: [
-        { title: 'Dashboard', url: '/command/press', icon: Home },
-        { title: 'My Tasks', url: '/command/press/tasks', icon: ClipboardList },
-      ],
-    },
-    {
-      label: 'Workflows',
-      items: [
-        { title: 'Press Queue', url: '/command/press/queue', icon: Newspaper },
-        { title: 'Vendor Management', url: '/command/press/vendor', icon: Users },
-      ],
-    },
-  ],
-  paper: [
-    {
-      label: 'Overview',
-      items: [
-        { title: 'Dashboard', url: '/command/paper', icon: Home },
-        { title: 'My Tasks', url: '/command/paper/tasks', icon: ClipboardList },
-      ],
-    },
-    {
-      label: 'Workflows',
-      items: [
-        { title: 'Journal Queue', url: '/command/paper/journal', icon: FileText },
-        { title: 'Book Queue', url: '/command/paper/book', icon: BookOpen },
-      ],
-    },
-  ],
-  research: [
-    {
-      label: 'Overview',
-      items: [
-        { title: 'Dashboard', url: '/command/research', icon: Home },
-        { title: 'My Tasks', url: '/command/research/tasks', icon: ClipboardList },
-      ],
-    },
-    {
-      label: 'Workflows',
-      items: [
-        { title: 'Salary Analysis', url: '/command/research/salary', icon: DollarSign },
-        { title: 'Opportunity CMS', url: '/command/research/opportunities', icon: Compass },
-      ],
-    },
-  ],
-  admin: [
-    {
-      label: 'Overview',
-      items: [
-        { title: 'Dashboard', url: '/admin', icon: Home },
-      ],
-    },
-    {
-      label: 'Management',
-      items: [
-        { title: 'Team Management', url: '/admin/teams', icon: Users },
-        { title: 'Workflow Permissions', url: '/admin/permissions', icon: Settings },
-        { title: 'Opportunity CMS', url: '/admin/opportunities', icon: Compass },
-      ],
-    },
-  ],
-};
-
 function CommandSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -114,7 +44,9 @@ function CommandSidebar() {
   const collapsed = state === 'collapsed';
 
   const role = user?.primaryRole || 'press';
-  const menuGroups = roleMenus[role] || roleMenus.press;
+  
+  // Fetch workflows dynamically based on the team/role
+  const { data: workflows, isLoading: workflowsLoading } = useWorkflowsByTeam(role);
 
   const handleLogout = async () => {
     await signOut();
@@ -147,10 +79,44 @@ function CommandSidebar() {
     }
   };
 
+  const getBaseUrl = () => {
+    if (role === 'admin') return '/admin';
+    return `/command/${role}`;
+  };
+
+  // Build menu groups dynamically
+  const menuGroups: MenuGroup[] = useMemo(() => {
+    const baseUrl = getBaseUrl();
+    
+    const groups: MenuGroup[] = [
+      {
+        label: 'Overview',
+        items: [
+          { title: 'Dashboard', url: baseUrl, icon: Home },
+          { title: 'My Tasks', url: `${baseUrl}/tasks`, icon: ClipboardList },
+        ],
+      },
+    ];
+
+    // Add workflows group dynamically from database
+    if (workflows && workflows.length > 0) {
+      groups.push({
+        label: 'Workflows',
+        items: workflows.map((workflow) => ({
+          title: workflow.name,
+          url: `${baseUrl}/workflow/${workflow.id}`,
+          icon: FileText,
+        })),
+      });
+    }
+
+    return groups;
+  }, [role, workflows]);
+
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="border-b border-sidebar-border">
-        <NavLink to="/command" className="flex items-center gap-3 px-2 py-3">
+        <NavLink to={getBaseUrl()} className="flex items-center gap-3 px-2 py-3">
           <div className={`w-9 h-9 rounded-lg ${getRoleColor()} flex items-center justify-center flex-shrink-0`}>
             <Settings className="w-5 h-5 text-white" />
           </div>
@@ -190,6 +156,17 @@ function CommandSidebar() {
             </SidebarGroupContent>
           </SidebarGroup>
         ))}
+        
+        {workflowsLoading && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Workflows</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <div className="flex items-center justify-center p-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
@@ -249,3 +226,5 @@ export function CommandCenterLayout({ children }: CommandCenterLayoutProps) {
     </SidebarProvider>
   );
 }
+
+export default CommandCenterLayout;
