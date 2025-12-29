@@ -23,19 +23,13 @@ import WorkflowPermissions from "./pages/admin/WorkflowPermissions";
 import OpportunityCMS from "./pages/admin/OpportunityCMS";
 // Press Team Pages
 import PressDashboard from "./pages/command/press/PressDashboard";
-import PressTasks from "./pages/command/press/PressTasks";
-import PressQueue from "./pages/command/press/PressQueue";
-import VendorManagement from "./pages/command/press/VendorManagement";
 // Paper Team Pages
 import PaperDashboard from "./pages/command/paper/PaperDashboard";
-import PaperTasks from "./pages/command/paper/PaperTasks";
-import JournalQueue from "./pages/command/paper/JournalQueue";
-import BookQueue from "./pages/command/paper/BookQueue";
 // Research Team Pages
 import ResearchDashboard from "./pages/command/research/ResearchDashboard";
-import ResearchTasks from "./pages/command/research/ResearchTasks";
-import SalaryAnalysis from "./pages/command/research/SalaryAnalysis";
-import ResearchOpportunityCMS from "./pages/command/research/OpportunityCMS";
+// Shared Command Pages
+import MyTasks from "./pages/command/MyTasks";
+import WorkflowPage from "./pages/command/WorkflowPage";
 
 const queryClient = new QueryClient();
 
@@ -112,52 +106,33 @@ const App = () => (
                   <OpportunityCMS />
                 </ProtectedRoute>
               } />
-              {/* Press Team Routes - require press or admin role */}
+              {/* Shared Command Routes */}
+              <Route path="/command/my-tasks" element={
+                <ProtectedRoute requiredRoles={['press', 'paper', 'research', 'admin']}>
+                  <MyTasks />
+                </ProtectedRoute>
+              } />
+              <Route path="/command/workflow/:workflowId" element={
+                <ProtectedRoute requiredRoles={['press', 'paper', 'research', 'admin']}>
+                  <WorkflowPage />
+                </ProtectedRoute>
+              } />
+              {/* Press Team Routes */}
               <Route path="/command/press" element={
                 <ProtectedRoute requiredRoles={['press', 'admin']}>
                   <PressDashboard />
                 </ProtectedRoute>
               } />
-              <Route path="/command/press/tasks" element={
-                <ProtectedRoute requiredRoles={['press', 'admin']}>
-                  <PressTasks />
-                </ProtectedRoute>
-              } />
-              <Route path="/command/press/workflow/:workflowId" element={
-                <ProtectedRoute requiredRoles={['press', 'admin']}>
-                  <PressQueue />
-                </ProtectedRoute>
-              } />
-              {/* Paper Team Routes - require paper or admin role */}
+              {/* Paper Team Routes */}
               <Route path="/command/paper" element={
                 <ProtectedRoute requiredRoles={['paper', 'admin']}>
                   <PaperDashboard />
                 </ProtectedRoute>
               } />
-              <Route path="/command/paper/tasks" element={
-                <ProtectedRoute requiredRoles={['paper', 'admin']}>
-                  <PaperTasks />
-                </ProtectedRoute>
-              } />
-              <Route path="/command/paper/workflow/:workflowId" element={
-                <ProtectedRoute requiredRoles={['paper', 'admin']}>
-                  <JournalQueue />
-                </ProtectedRoute>
-              } />
-              {/* Research Team Routes - require research or admin role */}
+              {/* Research Team Routes */}
               <Route path="/command/research" element={
                 <ProtectedRoute requiredRoles={['research', 'admin']}>
                   <ResearchDashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/command/research/tasks" element={
-                <ProtectedRoute requiredRoles={['research', 'admin']}>
-                  <ResearchTasks />
-                </ProtectedRoute>
-              } />
-              <Route path="/command/research/workflow/:workflowId" element={
-                <ProtectedRoute requiredRoles={['research', 'admin']}>
-                  <SalaryAnalysis />
                 </ProtectedRoute>
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
