@@ -88,25 +88,30 @@ function CommandSidebar() {
   const menuGroups: MenuGroup[] = useMemo(() => {
     const baseUrl = getBaseUrl();
     
+    // Overview items
+    const overviewItems: MenuItem[] = [
+      { title: 'Overview', url: baseUrl, icon: Home },
+      { title: 'My Tasks', url: '/command/my-tasks', icon: ClipboardList },
+    ];
+
+    // Workflow items - only show if workflows exist
+    const workflowItems: MenuItem[] = workflows?.map((workflow) => ({
+      title: workflow.name,
+      url: `/command/workflow/${workflow.id}`,
+      icon: FileText,
+    })) || [];
+
     const groups: MenuGroup[] = [
       {
-        label: 'Overview',
-        items: [
-          { title: 'Dashboard', url: baseUrl, icon: Home },
-          { title: 'My Tasks', url: `${baseUrl}/tasks`, icon: ClipboardList },
-        ],
+        label: 'Navigation',
+        items: overviewItems,
       },
     ];
 
-    // Add workflows group dynamically from database
-    if (workflows && workflows.length > 0) {
+    if (workflowItems.length > 0) {
       groups.push({
         label: 'Workflows',
-        items: workflows.map((workflow) => ({
-          title: workflow.name,
-          url: `${baseUrl}/workflow/${workflow.id}`,
-          icon: FileText,
-        })),
+        items: workflowItems,
       });
     }
 

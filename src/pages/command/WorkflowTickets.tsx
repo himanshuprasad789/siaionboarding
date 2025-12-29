@@ -18,8 +18,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Loader2, ChevronRight, User, Calendar } from "lucide-react";
-import { useTicketsByTeam, useUpdateTicket, Ticket } from "@/hooks/useTickets";
-import { useWorkflowsByTeam } from "@/hooks/useWorkflows";
+import { useTickets, useUpdateTicket, Ticket } from "@/hooks/useTickets";
+import { useWorkflows } from "@/hooks/useWorkflows";
 import { useAllProfiles } from "@/hooks/useProfiles";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -39,9 +39,9 @@ const PRIORITY_CONFIG = {
 };
 
 export default function WorkflowTickets() {
-  const { team, workflowId } = useParams<{ team: string; workflowId: string }>();
-  const { data: tickets, isLoading: ticketsLoading } = useTicketsByTeam(team || "");
-  const { data: workflows, isLoading: workflowsLoading } = useWorkflowsByTeam(team || "");
+  const { workflowId } = useParams<{ workflowId: string }>();
+  const { data: tickets, isLoading: ticketsLoading } = useTickets();
+  const { data: workflows, isLoading: workflowsLoading } = useWorkflows();
   const { data: profiles } = useAllProfiles();
   const updateTicket = useUpdateTicket();
   
@@ -49,8 +49,10 @@ export default function WorkflowTickets() {
   const [filterStage, setFilterStage] = useState<string>("all");
 
   const workflow = workflows?.find((w) => w.id === workflowId);
+  
+  // Filter tickets by the workflow's team
   const workflowTickets = tickets?.filter((t) => 
-    t.assigned_team === team
+    t.assigned_team === workflow?.team
   ) || [];
 
   const stages = workflow?.stages || [];
