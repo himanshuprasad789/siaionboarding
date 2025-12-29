@@ -120,9 +120,28 @@ export default function WorkflowPermissions() {
     },
   });
 
-  // Delete workflow mutation
+  // Delete workflow state
+  const [deleteWorkflowDialogOpen, setDeleteWorkflowDialogOpen] = useState(false);
+  const [workflowToDelete, setWorkflowToDelete] = useState<typeof workflows[0] | null>(null);
+
+  // Delete workflow mutation - cascades to stages and permissions
   const deleteWorkflowMutation = useMutation({
     mutationFn: async (workflowId: string) => {
+      // First delete workflow permissions for all stages of this workflow
+      const { error: permError } = await supabase
+        .from('workflow_permissions')
+        .delete()
+        .eq('workflow_id', workflowId);
+      if (permError) throw permError;
+
+      // Then delete workflow stages
+      const { error: stageError } = await supabase
+        .from('workflow_stages')
+        .delete()
+        .eq('workflow_id', workflowId);
+      if (stageError) throw stageError;
+
+      // Finally delete the workflow itself
       const { error } = await supabase
         .from('workflows')
         .delete()
@@ -131,7 +150,10 @@ export default function WorkflowPermissions() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
-      toast.success('Workflow deleted');
+      queryClient.invalidateQueries({ queryKey: ['workflow-permissions'] });
+      toast.success('Workflow and all related data deleted');
+      setDeleteWorkflowDialogOpen(false);
+      setWorkflowToDelete(null);
     },
     onError: (error) => {
       console.error('Error deleting workflow:', error);
@@ -222,6 +244,61 @@ export default function WorkflowPermissions() {
       toast.error('Failed to update permission');
     },
   });
+
+  // Bulk permission update mutation
+  const bulkUpdatePermissionsMutation = useMutation({
+    mutationFn: async ({
+      workflowId,
+      role,
+      permission,
+      stageIds,
+    }: {
+      workflowId: string;
+      role: AppRole;
+      permission: PermissionLevel;
+      stageIds: string[];
+    }) => {
+      // Delete existing permissions for this workflow/role combination
+      for (const stageId of stageIds) {
+        const existing = permissions.find(
+          p => p.workflow_id === workflowId && p.stage_id === stageId && p.role === role
+        );
+        
+        if (existing) {
+          const { error } = await supabase
+            .from('workflow_permissions')
+            .update({ permission_level: permission })
+            .eq('id', existing.id);
+          if (error) throw error;
+        } else {
+          const { error } = await supabase
+            .from('workflow_permissions')
+            .insert({
+              workflow_id: workflowId,
+              stage_id: stageId,
+              role,
+              permission_level: permission,
+            });
+          if (error) throw error;
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflow-permissions'] });
+      toast.success('All stage permissions updated');
+    },
+    onError: (error) => {
+      console.error('Error updating permissions:', error);
+      toast.error('Failed to update permissions');
+    },
+  });
+
+  const handleBulkPermissionUpdate = (workflowId: string, role: AppRole, permission: PermissionLevel) => {
+    const workflow = workflows.find(w => w.id === workflowId);
+    if (!workflow) return;
+    const stageIds = workflow.stages.map(s => s.id);
+    bulkUpdatePermissionsMutation.mutate({ workflowId, role, permission, stageIds });
+  };
 
   const getPermission = (workflowId: string, stageId: string, role: AppRole): PermissionLevel => {
     const perm = permissions.find(
@@ -419,32 +496,17 @@ export default function WorkflowPermissions() {
                           <Edit className="h-4 w-4 mr-1" />
                           Edit
                         </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm">
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Delete
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Workflow?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will permanently delete "{workflow.name}" and all its stages. 
-                                This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteWorkflowMutation.mutate(workflow.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          onClick={() => {
+                            setWorkflowToDelete(workflow);
+                            setDeleteWorkflowDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete
+                        </Button>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -575,6 +637,35 @@ export default function WorkflowPermissions() {
                                     >
                                       {role}
                                     </th>
+                                  ))}
+                                </tr>
+                                {/* Bulk permission row */}
+                                <tr className="border-b border-border bg-muted/50">
+                                  <td className="py-2 px-4">
+                                    <span className="text-sm font-medium text-muted-foreground italic">Set all stages →</span>
+                                  </td>
+                                  {allRoles.map((role) => (
+                                    <td key={role} className="py-2 px-4 text-center">
+                                      <Select
+                                        value=""
+                                        onValueChange={(value: PermissionLevel) => 
+                                          handleBulkPermissionUpdate(workflow.id, role, value)
+                                        }
+                                      >
+                                        <SelectTrigger className="w-28 mx-auto">
+                                          <span className="text-xs text-muted-foreground">Bulk set...</span>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {permissionLevels.map((level) => (
+                                            <SelectItem key={level} value={level}>
+                                              <Badge variant={getPermissionBadgeVariant(level)}>
+                                                {level}
+                                              </Badge>
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </td>
                                   ))}
                                 </tr>
                               </thead>
@@ -746,6 +837,68 @@ export default function WorkflowPermissions() {
               >
                 {createStageMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Add Stage
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Workflow Dialog */}
+        <Dialog open={deleteWorkflowDialogOpen} onOpenChange={setDeleteWorkflowDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Workflow</DialogTitle>
+              <DialogDescription>
+                This will permanently delete the workflow and all associated data.
+              </DialogDescription>
+            </DialogHeader>
+            {workflowToDelete && (
+              <div className="space-y-4 py-4">
+                <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 space-y-3">
+                  <p className="font-medium text-destructive">
+                    You are about to delete "{workflowToDelete.name}"
+                  </p>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p>This action will also delete:</p>
+                    <ul className="list-disc list-inside ml-2 space-y-1">
+                      <li>
+                        <strong>{workflowToDelete.stages.length}</strong> workflow stage{workflowToDelete.stages.length !== 1 ? 's' : ''}
+                        {workflowToDelete.stages.length > 0 && (
+                          <span className="text-xs ml-1">
+                            ({workflowToDelete.stages.map(s => s.name).join(', ')})
+                          </span>
+                        )}
+                      </li>
+                      <li>
+                        All permission settings for each stage
+                      </li>
+                      <li>
+                        Team workflow access configurations
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  This action cannot be undone.
+                </p>
+              </div>
+            )}
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setDeleteWorkflowDialogOpen(false);
+                  setWorkflowToDelete(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive"
+                onClick={() => workflowToDelete && deleteWorkflowMutation.mutate(workflowToDelete.id)}
+                disabled={deleteWorkflowMutation.isPending}
+              >
+                {deleteWorkflowMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Delete Workflow
               </Button>
             </DialogFooter>
           </DialogContent>
