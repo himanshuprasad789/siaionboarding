@@ -21,15 +21,11 @@ import UserManagement from "./pages/admin/UserManagement";
 import TeamManagement from "./pages/admin/TeamManagement";
 import WorkflowPermissions from "./pages/admin/WorkflowPermissions";
 import OpportunityCMS from "./pages/admin/OpportunityCMS";
-// Press Team Pages
-import PressDashboard from "./pages/command/press/PressDashboard";
-// Paper Team Pages
-import PaperDashboard from "./pages/command/paper/PaperDashboard";
-// Research Team Pages
-import ResearchDashboard from "./pages/command/research/ResearchDashboard";
-// Shared Command Pages
+// Unified Command Pages
+import CommandDashboard from "./pages/command/CommandDashboard";
 import MyTasks from "./pages/command/MyTasks";
 import WorkflowPage from "./pages/command/WorkflowPage";
+import TicketDetailPage from "./pages/command/TicketDetailPage";
 
 const queryClient = new QueryClient();
 
@@ -44,98 +40,26 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/onboarding" element={
-                <ProtectedRoute>
-                  <Onboarding />
-                </ProtectedRoute>
-              } />
+              <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               {/* Client Dashboard Routes */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <HomePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/dashboard/plan" element={
-                <ProtectedRoute>
-                  <PlanPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/dashboard/evidence" element={
-                <ProtectedRoute>
-                  <EvidencePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/dashboard/marketplace" element={
-                <ProtectedRoute>
-                  <MarketplacePage />
-                </ProtectedRoute>
-              } />
-              <Route path="/dashboard/messages" element={
-                <ProtectedRoute>
-                  <MessagesPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/dashboard/profile" element={
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              } />
-              {/* Admin Routes - require admin role */}
-              <Route path="/admin" element={
-                <ProtectedRoute requireAdmin>
-                  <AdminOverview />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/users" element={
-                <ProtectedRoute requireAdmin>
-                  <UserManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/teams" element={
-                <ProtectedRoute requireAdmin>
-                  <TeamManagement />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/permissions" element={
-                <ProtectedRoute requireAdmin>
-                  <WorkflowPermissions />
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/opportunities" element={
-                <ProtectedRoute requireAdmin>
-                  <OpportunityCMS />
-                </ProtectedRoute>
-              } />
-              {/* Shared Command Routes */}
-              <Route path="/command/my-tasks" element={
-                <ProtectedRoute requiredRoles={['press', 'paper', 'research', 'admin']}>
-                  <MyTasks />
-                </ProtectedRoute>
-              } />
-              <Route path="/command/workflow/:workflowId" element={
-                <ProtectedRoute requiredRoles={['press', 'paper', 'research', 'admin']}>
-                  <WorkflowPage />
-                </ProtectedRoute>
-              } />
-              {/* Press Team Routes */}
-              <Route path="/command/press" element={
-                <ProtectedRoute requiredRoles={['press', 'admin']}>
-                  <PressDashboard />
-                </ProtectedRoute>
-              } />
-              {/* Paper Team Routes */}
-              <Route path="/command/paper" element={
-                <ProtectedRoute requiredRoles={['paper', 'admin']}>
-                  <PaperDashboard />
-                </ProtectedRoute>
-              } />
-              {/* Research Team Routes */}
-              <Route path="/command/research" element={
-                <ProtectedRoute requiredRoles={['research', 'admin']}>
-                  <ResearchDashboard />
-                </ProtectedRoute>
-              } />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="/dashboard" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+              <Route path="/dashboard/plan" element={<ProtectedRoute><PlanPage /></ProtectedRoute>} />
+              <Route path="/dashboard/evidence" element={<ProtectedRoute><EvidencePage /></ProtectedRoute>} />
+              <Route path="/dashboard/marketplace" element={<ProtectedRoute><MarketplacePage /></ProtectedRoute>} />
+              <Route path="/dashboard/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+              <Route path="/dashboard/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+              {/* Admin Routes */}
+              <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminOverview /></ProtectedRoute>} />
+              <Route path="/admin/users" element={<ProtectedRoute requireAdmin><UserManagement /></ProtectedRoute>} />
+              <Route path="/admin/teams" element={<ProtectedRoute requireAdmin><TeamManagement /></ProtectedRoute>} />
+              <Route path="/admin/permissions" element={<ProtectedRoute requireAdmin><WorkflowPermissions /></ProtectedRoute>} />
+              <Route path="/admin/opportunities" element={<ProtectedRoute requireAdmin><OpportunityCMS /></ProtectedRoute>} />
+              {/* Unified Command Routes - All staff teams */}
+              <Route path="/command" element={<ProtectedRoute requireStaff><CommandDashboard /></ProtectedRoute>} />
+              <Route path="/command/my-tasks" element={<ProtectedRoute requireStaff><MyTasks /></ProtectedRoute>} />
+              <Route path="/command/workflows/:workflowId" element={<ProtectedRoute requireStaff><WorkflowPage /></ProtectedRoute>} />
+              <Route path="/command/tickets/:ticketId" element={<ProtectedRoute requireStaff><TicketDetailPage /></ProtectedRoute>} />
+              {/* Catch-all */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </TooltipProvider>

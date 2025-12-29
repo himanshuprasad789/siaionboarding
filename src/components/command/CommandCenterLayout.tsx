@@ -4,36 +4,17 @@ import {
   Home, ClipboardList, Settings, LogOut, Loader2, FileText
 } from 'lucide-react';
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarHeader,
-  SidebarFooter,
-  SidebarProvider,
-  SidebarInset,
-  SidebarTrigger,
-  useSidebar,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
+  SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter,
+  SidebarProvider, SidebarInset, SidebarTrigger, useSidebar,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useRole } from '@/contexts/RoleContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useWorkflowsByTeam } from '@/hooks/useWorkflows';
+import { useAccessibleWorkflows } from '@/hooks/useWorkflows';
 
-interface MenuItem {
-  title: string;
-  url: string;
-  icon: React.ElementType;
-}
-
-interface MenuGroup {
-  label: string;
-  items: MenuItem[];
-}
+interface MenuItem { title: string; url: string; icon: React.ElementType; }
+interface MenuGroup { label: string; items: MenuItem[]; }
 
 function CommandSidebar() {
   const location = useLocation();
@@ -42,22 +23,14 @@ function CommandSidebar() {
   const { signOut } = useAuth();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
-
   const role = user?.primaryRole || 'press';
   
-  // Fetch workflows dynamically based on the team/role
-  const { data: workflows, isLoading: workflowsLoading } = useWorkflowsByTeam(role);
+  // Fetch workflows based on user's team access
+  const { data: workflows, isLoading: workflowsLoading } = useAccessibleWorkflows();
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-  };
+  const handleLogout = async () => { await signOut(); navigate('/auth'); };
 
-  const initials = user?.name
-    ?.split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase() || 'U';
+  const initials = user?.name?.split(' ').map((n) => n[0]).join('').toUpperCase() || 'U';
 
   const getRoleColor = () => {
     switch (role) {
@@ -79,42 +52,24 @@ function CommandSidebar() {
     }
   };
 
-  const getBaseUrl = () => {
-    if (role === 'admin') return '/admin';
-    return `/command/${role}`;
-  };
+  // All staff use /command base URL
+  const getBaseUrl = () => role === 'admin' ? '/admin' : '/command';
 
-  // Build menu groups dynamically
   const menuGroups: MenuGroup[] = useMemo(() => {
     const baseUrl = getBaseUrl();
-    
-    // Overview items
     const overviewItems: MenuItem[] = [
       { title: 'Overview', url: baseUrl, icon: Home },
       { title: 'My Tasks', url: '/command/my-tasks', icon: ClipboardList },
     ];
 
-    // Workflow items - only show if workflows exist
     const workflowItems: MenuItem[] = workflows?.map((workflow) => ({
       title: workflow.name,
-      url: `/command/workflow/${workflow.id}`,
+      url: `/command/workflows/${workflow.id}`,
       icon: FileText,
     })) || [];
 
-    const groups: MenuGroup[] = [
-      {
-        label: 'Navigation',
-        items: overviewItems,
-      },
-    ];
-
-    if (workflowItems.length > 0) {
-      groups.push({
-        label: 'Workflows',
-        items: workflowItems,
-      });
-    }
-
+    const groups: MenuGroup[] = [{ label: 'Navigation', items: overviewItems }];
+    if (workflowItems.length > 0) groups.push({ label: 'Workflows', items: workflowItems });
     return groups;
   }, [role, workflows]);
 

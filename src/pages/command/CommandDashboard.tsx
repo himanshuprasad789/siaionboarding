@@ -1,15 +1,14 @@
-import { useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ClipboardList, Clock, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
-import { useTicketsByTeam } from "@/hooks/useTickets";
-import { useWorkflowsByTeam } from "@/hooks/useWorkflows";
+import { useTicketsByUserTeams } from "@/hooks/useTickets";
+import { useAccessibleWorkflows } from "@/hooks/useWorkflows";
 import { Link } from "react-router-dom";
+import { CommandCenterLayout } from "@/components/command/CommandCenterLayout";
 
 export default function CommandDashboard() {
-  const { team } = useParams<{ team: string }>();
-  const { data: tickets, isLoading: ticketsLoading } = useTicketsByTeam(team || "");
-  const { data: workflows, isLoading: workflowsLoading } = useWorkflowsByTeam(team || "");
+  const { data: tickets, isLoading: ticketsLoading } = useTicketsByUserTeams();
+  const { data: workflows, isLoading: workflowsLoading } = useAccessibleWorkflows();
 
   const stats = {
     total: tickets?.length || 0,
@@ -29,113 +28,118 @@ export default function CommandDashboard() {
 
   if (ticketsLoading || workflowsLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <CommandCenterLayout>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </CommandCenterLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">Dashboard</h2>
-        <p className="text-muted-foreground">Overview of your team's tickets and workflows</p>
-      </div>
+    <CommandCenterLayout>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold">Dashboard</h2>
+          <p className="text-muted-foreground">Overview of your team's tickets and workflows</p>
+        </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {statCards.map((stat) => (
+            <Card key={stat.label}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+                    <p className="text-2xl font-bold">{stat.value}</p>
+                  </div>
+                  <stat.icon className={`h-8 w-8 ${stat.color}`} />
                 </div>
-                <stat.icon className={`h-8 w-8 ${stat.color}`} />
-              </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Workflows Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Active Workflows</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {workflows && workflows.length > 0 ? (
+                <div className="space-y-3">
+                  {workflows.map((workflow) => {
+                    const workflowTickets = tickets?.filter(
+                      (t) => t.related_workflow_id === workflow.id
+                    );
+                    return (
+                      <Link
+                        key={workflow.id}
+                        to={`/command/workflows/${workflow.id}`}
+                        className="block p-3 rounded-lg border hover:bg-accent transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium">{workflow.name}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {workflow.stages?.length || 0} stages • {workflow.team}
+                            </p>
+                          </div>
+                          <Badge variant="secondary">
+                            {workflowTickets?.length || 0} tickets
+                          </Badge>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No workflows available</p>
+              )}
             </CardContent>
           </Card>
-        ))}
-      </div>
 
-      {/* Workflows Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Active Workflows</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {workflows && workflows.length > 0 ? (
-              <div className="space-y-3">
-                {workflows.map((workflow) => {
-                  const workflowTickets = tickets?.filter(
-                    (t) => t.related_workflow_id === workflow.id
-                  );
-                  return (
-                    <Link
-                      key={workflow.id}
-                      to={`/command/${team}/workflow/${workflow.id}`}
-                      className="block p-3 rounded-lg border hover:bg-accent transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium">{workflow.name}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            {workflow.stages?.length || 0} stages
-                          </p>
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent High Priority</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {tickets && stats.highPriority > 0 ? (
+                <div className="space-y-3">
+                  {tickets
+                    .filter((t) => t.priority === "high" || t.priority === "urgent")
+                    .slice(0, 5)
+                    .map((ticket) => (
+                      <Link
+                        key={ticket.id}
+                        to={`/command/tickets/${ticket.id}`}
+                        className="block p-3 rounded-lg border hover:bg-accent transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium text-sm">{ticket.title}</h4>
+                            <p className="text-xs text-muted-foreground">
+                              {ticket.client_name}
+                            </p>
+                          </div>
+                          <Badge variant={ticket.priority === "urgent" ? "destructive" : "default"}>
+                            {ticket.priority}
+                          </Badge>
                         </div>
-                        <Badge variant="secondary">
-                          {workflowTickets?.length || 0} tickets
-                        </Badge>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-4">No workflows available</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent High Priority</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {tickets && stats.highPriority > 0 ? (
-              <div className="space-y-3">
-                {tickets
-                  .filter((t) => t.priority === "high" || t.priority === "urgent")
-                  .slice(0, 5)
-                  .map((ticket) => (
-                    <div
-                      key={ticket.id}
-                      className="p-3 rounded-lg border"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium text-sm">{ticket.title}</h4>
-                          <p className="text-xs text-muted-foreground">
-                            {ticket.client_name}
-                          </p>
-                        </div>
-                        <Badge variant={ticket.priority === "urgent" ? "destructive" : "default"}>
-                          {ticket.priority}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-4">
-                No high priority tickets
-              </p>
-            )}
-          </CardContent>
-        </Card>
+                      </Link>
+                    ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">
+                  No high priority tickets
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
+    </CommandCenterLayout>
   );
 }
