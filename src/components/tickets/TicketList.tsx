@@ -30,7 +30,34 @@ const priorityConfig: Record<TicketPriority, { label: string; color: string }> =
   low: { label: 'Low', color: 'bg-green-100 text-green-700' },
 };
 
+const teamFilterOptions = [
+  { label: 'Press', value: 'press' },
+  { label: 'Research', value: 'research' },
+  { label: 'Paper', value: 'paper' },
+  { label: 'Unassigned', value: 'unassigned' },
+];
+
+const statusFilterOptions = [
+  { label: 'Open', value: 'open' },
+  { label: 'In Progress', value: 'in_progress' },
+  { label: 'Pending Review', value: 'pending_review' },
+  { label: 'Closed', value: 'closed' },
+];
+
+const priorityFilterOptions = [
+  { label: 'Urgent', value: 'urgent' },
+  { label: 'High', value: 'high' },
+  { label: 'Medium', value: 'medium' },
+  { label: 'Low', value: 'low' },
+];
+
 export function TicketList({ tickets, onTicketClick, isLoading }: TicketListProps) {
+  const actions: DataTableAction<Ticket>[] = [
+    { label: 'View Details', onClick: (row) => onTicketClick?.(row) },
+    { label: 'Reassign', onClick: (row) => toast.info(`Reassigning ${row.title}`) },
+    { label: 'Mark Complete', onClick: (row) => toast.success(`Marked ${row.title} complete`) },
+  ];
+
   const columns: ColumnDef<Ticket>[] = [
     {
       accessorKey: 'title',
@@ -41,6 +68,10 @@ export function TicketList({ tickets, onTicketClick, isLoading }: TicketListProp
           <p className="text-sm text-muted-foreground">{row.original.client_name || 'Unknown Client'}</p>
         </div>
       ),
+      meta: {
+        filterType: 'text' as const,
+        filterLabel: 'Title',
+      },
     },
     {
       accessorKey: 'assigned_team',
@@ -50,8 +81,19 @@ export function TicketList({ tickets, onTicketClick, isLoading }: TicketListProp
           {row.original.assigned_team || 'unassigned'}
         </Badge>
       ),
+      meta: {
+        filterType: 'select' as const,
+        filterLabel: 'Team',
+        filterOptions: teamFilterOptions,
+      },
       filterFn: (row, id, value) => {
-        return value.includes(row.original.assigned_team || 'unassigned');
+        if (typeof value === 'object' && value !== null && 'value' in value) {
+          return (row.original.assigned_team || 'unassigned') === value.value;
+        }
+        if (Array.isArray(value)) {
+          return value.includes(row.original.assigned_team || 'unassigned');
+        }
+        return (row.original.assigned_team || 'unassigned') === value;
       },
     },
     {
@@ -65,8 +107,19 @@ export function TicketList({ tickets, onTicketClick, isLoading }: TicketListProp
           </Badge>
         );
       },
+      meta: {
+        filterType: 'select' as const,
+        filterLabel: 'Status',
+        filterOptions: statusFilterOptions,
+      },
       filterFn: (row, id, value) => {
-        return value.includes(row.original.status);
+        if (typeof value === 'object' && value !== null && 'value' in value) {
+          return row.original.status === value.value;
+        }
+        if (Array.isArray(value)) {
+          return value.includes(row.original.status);
+        }
+        return row.original.status === value;
       },
     },
     {
@@ -80,8 +133,19 @@ export function TicketList({ tickets, onTicketClick, isLoading }: TicketListProp
           </Badge>
         );
       },
+      meta: {
+        filterType: 'select' as const,
+        filterLabel: 'Priority',
+        filterOptions: priorityFilterOptions,
+      },
       filterFn: (row, id, value) => {
-        return value.includes(row.original.priority);
+        if (typeof value === 'object' && value !== null && 'value' in value) {
+          return row.original.priority === value.value;
+        }
+        if (Array.isArray(value)) {
+          return value.includes(row.original.priority);
+        }
+        return row.original.priority === value;
       },
     },
     {
@@ -90,6 +154,10 @@ export function TicketList({ tickets, onTicketClick, isLoading }: TicketListProp
       cell: ({ row }) => (
         <span className="text-muted-foreground">{row.original.assigned_to_name || 'Unassigned'}</span>
       ),
+      meta: {
+        filterType: 'text' as const,
+        filterLabel: 'Assigned To',
+      },
     },
     {
       id: 'actions',
@@ -100,33 +168,6 @@ export function TicketList({ tickets, onTicketClick, isLoading }: TicketListProp
         />
       ),
     },
-  ];
-
-  const actions: DataTableAction<Ticket>[] = [
-    { label: 'View Details', onClick: (row) => onTicketClick?.(row) },
-    { label: 'Reassign', onClick: (row) => toast.info(`Reassigning ${row.title}`) },
-    { label: 'Mark Complete', onClick: (row) => toast.success(`Marked ${row.title} complete`) },
-  ];
-
-  const statusFilterOptions = [
-    { label: 'Open', value: 'open' },
-    { label: 'In Progress', value: 'in_progress' },
-    { label: 'Pending Review', value: 'pending_review' },
-    { label: 'Closed', value: 'closed' },
-  ];
-
-  const priorityFilterOptions = [
-    { label: 'Urgent', value: 'urgent' },
-    { label: 'High', value: 'high' },
-    { label: 'Medium', value: 'medium' },
-    { label: 'Low', value: 'low' },
-  ];
-
-  const teamFilterOptions = [
-    { label: 'Press', value: 'press' },
-    { label: 'Research', value: 'research' },
-    { label: 'Paper', value: 'paper' },
-    { label: 'Unassigned', value: 'unassigned' },
   ];
 
   return (
