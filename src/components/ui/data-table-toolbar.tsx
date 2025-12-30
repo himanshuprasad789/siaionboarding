@@ -1,9 +1,10 @@
 import { Table } from "@tanstack/react-table";
-import { X, Search, SlidersHorizontal } from "lucide-react";
+import { X, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTableViewOptions } from "@/components/ui/data-table-view-options";
 import { DataTableFacetedFilter } from "@/components/ui/data-table-faceted-filter";
+import { DataTableAdvancedFilter } from "@/components/ui/data-table-advanced-filter";
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
@@ -50,6 +51,7 @@ export function DataTableToolbar<TData>({
             />
           );
         })}
+        <DataTableAdvancedFilter table={table} />
         {isFiltered && (
           <Button
             variant="ghost"
