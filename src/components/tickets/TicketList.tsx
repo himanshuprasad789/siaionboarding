@@ -1,4 +1,7 @@
-import { DataTable, DataTableColumn, StatusBadge, TypeBadge } from '@/components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
+import { EnhancedDataTable } from '@/components/ui/enhanced-data-table';
+import { DataTableColumnHeader } from '@/components/ui/data-table-column-header';
+import { DataTableRowActions, DataTableAction } from '@/components/ui/data-table-row-actions';
 import { Badge } from '@/components/ui/badge';
 import { Ticket } from '@/hooks/useTickets';
 import { toast } from 'sonner';
@@ -13,111 +16,133 @@ interface TicketListProps {
   isLoading?: boolean;
 }
 
+const statusConfig: Record<TicketStatus, { label: string; color: string }> = {
+  open: { label: 'Open', color: 'bg-yellow-100 text-yellow-700' },
+  in_progress: { label: 'In Progress', color: 'bg-blue-100 text-blue-700' },
+  pending_review: { label: 'Pending Review', color: 'bg-purple-100 text-purple-700' },
+  closed: { label: 'Done', color: 'bg-green-100 text-green-700' },
+};
+
+const priorityConfig: Record<TicketPriority, { label: string; color: string }> = {
+  urgent: { label: 'Urgent', color: 'bg-red-100 text-red-700' },
+  high: { label: 'High', color: 'bg-red-100 text-red-700' },
+  medium: { label: 'Medium', color: 'bg-amber-100 text-amber-700' },
+  low: { label: 'Low', color: 'bg-green-100 text-green-700' },
+};
+
 export function TicketList({ tickets, onTicketClick, isLoading }: TicketListProps) {
-  const getStatusType = (status: TicketStatus): 'done' | 'in_progress' | 'waiting' | 'pending' => {
-    switch (status) {
-      case 'closed':
-        return 'done';
-      case 'in_progress':
-        return 'in_progress';
-      case 'pending_review':
-        return 'waiting';
-      case 'open':
-      default:
-        return 'pending';
-    }
-  };
-
-  const getStatusLabel = (status: TicketStatus) => {
-    switch (status) {
-      case 'open':
-        return 'Open';
-      case 'pending_review':
-        return 'Pending Review';
-      case 'in_progress':
-        return 'In Progress';
-      case 'closed':
-        return 'Done';
-      default:
-        return status;
-    }
-  };
-
-  const columns: DataTableColumn<Ticket>[] = [
+  const columns: ColumnDef<Ticket>[] = [
     {
-      key: 'title',
-      header: 'Title',
-      cell: (row) => (
+      accessorKey: 'title',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
+      cell: ({ row }) => (
         <div>
-          <p className="font-medium">{row.title}</p>
-          <p className="text-sm text-muted-foreground">{row.client_name || 'Unknown Client'}</p>
+          <p className="font-medium">{row.original.title}</p>
+          <p className="text-sm text-muted-foreground">{row.original.client_name || 'Unknown Client'}</p>
         </div>
       ),
     },
     {
-      key: 'type',
-      header: 'Team',
-      cell: (row) => <TypeBadge type={row.assigned_team || 'unassigned'} />,
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      cell: (row) => (
-        <StatusBadge 
-          status={getStatusType(row.status)} 
-          label={getStatusLabel(row.status)} 
-        />
+      accessorKey: 'assigned_team',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Team" />,
+      cell: ({ row }) => (
+        <Badge variant="outline" className="capitalize">
+          {row.original.assigned_team || 'unassigned'}
+        </Badge>
       ),
-    },
-    {
-      key: 'priority',
-      header: 'Priority',
-      cell: (row) => {
-        const priorityColors: Record<TicketPriority, string> = {
-          urgent: 'bg-red-100 text-red-700',
-          high: 'bg-red-100 text-red-700',
-          medium: 'bg-amber-100 text-amber-700',
-          low: 'bg-green-100 text-green-700',
-        };
-        return (
-          <Badge variant="outline" className={`font-normal ${priorityColors[row.priority]}`}>
-            {row.priority.charAt(0).toUpperCase() + row.priority.slice(1)}
-          </Badge>
-        );
+      filterFn: (row, id, value) => {
+        return value.includes(row.original.assigned_team || 'unassigned');
       },
     },
     {
-      key: 'assignedTo',
-      header: 'Assigned To',
-      cell: (row) => <span className="text-muted-foreground">{row.assigned_to_name || 'Unassigned'}</span>,
+      accessorKey: 'status',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+      cell: ({ row }) => {
+        const status = statusConfig[row.original.status];
+        return (
+          <Badge className={`font-normal ${status.color}`}>
+            {status.label}
+          </Badge>
+        );
+      },
+      filterFn: (row, id, value) => {
+        return value.includes(row.original.status);
+      },
+    },
+    {
+      accessorKey: 'priority',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Priority" />,
+      cell: ({ row }) => {
+        const priority = priorityConfig[row.original.priority];
+        return (
+          <Badge variant="outline" className={`font-normal ${priority.color}`}>
+            {priority.label}
+          </Badge>
+        );
+      },
+      filterFn: (row, id, value) => {
+        return value.includes(row.original.priority);
+      },
+    },
+    {
+      accessorKey: 'assigned_to_name',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Assigned To" />,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">{row.original.assigned_to_name || 'Unassigned'}</span>
+      ),
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => (
+        <DataTableRowActions
+          row={row}
+          actions={actions}
+        />
+      ),
     },
   ];
 
-  const actions = [
-    { label: 'View Details', onClick: (row: Ticket) => onTicketClick?.(row) },
-    { label: 'Reassign', onClick: (row: Ticket) => toast.info(`Reassigning ${row.title}`) },
-    { label: 'Mark Complete', onClick: (row: Ticket) => toast.success(`Marked ${row.title} complete`) },
+  const actions: DataTableAction<Ticket>[] = [
+    { label: 'View Details', onClick: (row) => onTicketClick?.(row) },
+    { label: 'Reassign', onClick: (row) => toast.info(`Reassigning ${row.title}`) },
+    { label: 'Mark Complete', onClick: (row) => toast.success(`Marked ${row.title} complete`) },
   ];
 
-  if (tickets.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <div className="w-12 h-12 mx-auto rounded-full bg-muted flex items-center justify-center mb-3">
-          <span className="text-2xl">✓</span>
-        </div>
-        <h3 className="text-lg font-medium text-foreground">No tickets found</h3>
-        <p className="text-muted-foreground">All caught up! Check back later for new tasks.</p>
-      </div>
-    );
-  }
+  const statusFilterOptions = [
+    { label: 'Open', value: 'open' },
+    { label: 'In Progress', value: 'in_progress' },
+    { label: 'Pending Review', value: 'pending_review' },
+    { label: 'Closed', value: 'closed' },
+  ];
+
+  const priorityFilterOptions = [
+    { label: 'Urgent', value: 'urgent' },
+    { label: 'High', value: 'high' },
+    { label: 'Medium', value: 'medium' },
+    { label: 'Low', value: 'low' },
+  ];
+
+  const teamFilterOptions = [
+    { label: 'Press', value: 'press' },
+    { label: 'Research', value: 'research' },
+    { label: 'Paper', value: 'paper' },
+    { label: 'Unassigned', value: 'unassigned' },
+  ];
 
   return (
-    <DataTable
+    <EnhancedDataTable
       data={tickets}
       columns={columns}
-      actions={actions}
+      isLoading={isLoading}
+      searchPlaceholder="Search tickets..."
+      filterableColumns={[
+        { id: 'status', title: 'Status', options: statusFilterOptions },
+        { id: 'priority', title: 'Priority', options: priorityFilterOptions },
+        { id: 'assigned_team', title: 'Team', options: teamFilterOptions },
+      ]}
       onRowClick={onTicketClick}
       getRowId={(row) => row.id}
+      emptyMessage="No tickets found. All caught up!"
     />
   );
 }

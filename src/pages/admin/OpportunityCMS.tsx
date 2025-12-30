@@ -1,12 +1,14 @@
 import { useState } from 'react';
+import { ColumnDef } from '@tanstack/react-table';
 import { AdminLayout } from '@/components/admin/AdminLayout';
-import { DataTable, DataTableColumn, TypeBadge } from '@/components/ui/data-table';
+import { EnhancedDataTable } from '@/components/ui/enhanced-data-table';
+import { DataTableColumnHeader } from '@/components/ui/data-table-column-header';
+import { DataTableRowActions, DataTableAction } from '@/components/ui/data-table-row-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { 
   Dialog, 
   DialogContent, 
@@ -23,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Crown, Columns, Loader2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useOpportunities, useCreateOpportunity, useUpdateOpportunity, useDeleteOpportunity } from '@/hooks/useOpportunities';
 import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -144,33 +146,38 @@ export default function OpportunityCMS() {
     }
   };
 
-  const columns: DataTableColumn<OpportunityRow>[] = [
+  const columns: ColumnDef<OpportunityRow>[] = [
     {
-      key: 'title',
-      header: 'Title',
-      cell: (row) => (
+      accessorKey: 'title',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
+      cell: ({ row }) => (
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
-            <span className="text-xs font-medium">{row.category.slice(0, 2).toUpperCase()}</span>
+            <span className="text-xs font-medium">{row.original.category.slice(0, 2).toUpperCase()}</span>
           </div>
           <div>
-            <p className="font-medium">{row.title}</p>
+            <p className="font-medium">{row.original.title}</p>
             <p className="text-xs text-muted-foreground line-clamp-1">
-              {row.description || 'No description'}
+              {row.original.description || 'No description'}
             </p>
           </div>
         </div>
       ),
     },
     {
-      key: 'category',
-      header: 'Category',
-      cell: (row) => <TypeBadge type={row.category} />,
+      accessorKey: 'category',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Category" />,
+      cell: ({ row }) => (
+        <Badge variant="outline">{row.original.category}</Badge>
+      ),
+      filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id));
+      },
     },
     {
-      key: 'status',
-      header: 'Status',
-      cell: (row) => {
+      accessorKey: 'status',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
+      cell: ({ row }) => {
         const statusColors: Record<OpportunityStatus, string> = {
           draft: 'bg-muted text-muted-foreground',
           published: 'bg-green-100 text-green-700',
@@ -178,43 +185,59 @@ export default function OpportunityCMS() {
           review: 'bg-yellow-100 text-yellow-700',
         };
         return (
-          <Badge className={`font-normal ${statusColors[row.status]}`}>
-            {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+          <Badge className={`font-normal ${statusColors[row.original.status]}`}>
+            {row.original.status.charAt(0).toUpperCase() + row.original.status.slice(1)}
           </Badge>
         );
       },
+      filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id));
+      },
     },
     {
-      key: 'difficulty',
-      header: 'Difficulty',
-      cell: (row) => (
+      accessorKey: 'difficulty_level',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Difficulty" />,
+      cell: ({ row }) => (
         <Badge variant="outline" className="font-normal">
-          Level {row.difficulty_level || 1}
+          Level {row.original.difficulty_level || 1}
         </Badge>
       ),
     },
     {
-      key: 'updated',
-      header: 'Updated',
-      cell: (row) => <span className="text-muted-foreground">{formatDate(row.updated_at)}</span>,
+      accessorKey: 'updated_at',
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Updated" />,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">{formatDate(row.original.updated_at)}</span>
+      ),
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => (
+        <DataTableRowActions
+          row={row}
+          actions={actions}
+        />
+      ),
     },
   ];
 
-  const actions = [
-    { label: 'Edit', onClick: (row: OpportunityRow) => openEdit(row) },
-    { label: 'View in Marketplace', onClick: (row: OpportunityRow) => toast.info(`Viewing ${row.title}`) },
-    { label: 'Delete', onClick: (row: OpportunityRow) => handleDelete(row.id), variant: 'destructive' as const },
+  const actions: DataTableAction<OpportunityRow>[] = [
+    { label: 'Edit', onClick: (row) => openEdit(row) },
+    { label: 'View in Marketplace', onClick: (row) => toast.info(`Viewing ${row.title}`) },
+    { label: 'Delete', onClick: (row) => handleDelete(row.id), variant: 'destructive', separator: true },
   ];
 
-  if (isLoading) {
-    return (
-      <AdminLayout>
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </AdminLayout>
-    );
-  }
+  const categoryFilterOptions = criteriaCategories.map(cat => ({
+    label: cat,
+    value: cat,
+  }));
+
+  const statusFilterOptions = [
+    { label: 'Draft', value: 'draft' },
+    { label: 'Published', value: 'published' },
+    { label: 'Archived', value: 'archived' },
+    { label: 'Review', value: 'review' },
+  ];
 
   return (
     <AdminLayout>
@@ -227,98 +250,92 @@ export default function OpportunityCMS() {
             </p>
           </div>
           
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="gap-2">
-              <Columns className="h-4 w-4" />
-              Customize Columns
-            </Button>
-            <Dialog open={isCreateOpen} onOpenChange={(open) => {
-              setIsCreateOpen(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add Opportunity
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-lg">
-                <DialogHeader>
-                  <DialogTitle>Create New Opportunity</DialogTitle>
-                  <DialogDescription>
-                    Add a new opportunity to the client marketplace.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="opp-title">Title *</Label>
-                    <Input
-                      id="opp-title"
-                      placeholder="e.g., AI Summit 2025 Speaker"
-                      value={formTitle}
-                      onChange={(e) => setFormTitle(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="opp-desc">Description</Label>
-                    <Textarea
-                      id="opp-desc"
-                      placeholder="Describe this opportunity..."
-                      value={formDescription}
-                      onChange={(e) => setFormDescription(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Category *</Label>
-                    <Select value={formCategory} onValueChange={setFormCategory}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {criteriaCategories.map((cat) => (
-                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Status</Label>
-                    <Select value={formStatus} onValueChange={(value: OpportunityStatus) => setFormStatus(value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="published">Published</SelectItem>
-                        <SelectItem value="archived">Archived</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Difficulty Level</Label>
-                    <Select value={formDifficulty.toString()} onValueChange={(value) => setFormDifficulty(parseInt(value))}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select difficulty" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1, 2, 3, 4, 5].map((level) => (
-                          <SelectItem key={level} value={level.toString()}>Level {level}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+          <Dialog open={isCreateOpen} onOpenChange={(open) => {
+            setIsCreateOpen(open);
+            if (!open) resetForm();
+          }}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add Opportunity
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Create New Opportunity</DialogTitle>
+                <DialogDescription>
+                  Add a new opportunity to the client marketplace.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="opp-title">Title *</Label>
+                  <Input
+                    id="opp-title"
+                    placeholder="e.g., AI Summit 2025 Speaker"
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                  />
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleCreate} disabled={createOpportunity.isPending}>
-                    {createOpportunity.isPending ? 'Creating...' : 'Create'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="opp-desc">Description</Label>
+                  <Textarea
+                    id="opp-desc"
+                    placeholder="Describe this opportunity..."
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Category *</Label>
+                  <Select value={formCategory} onValueChange={setFormCategory}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {criteriaCategories.map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={formStatus} onValueChange={(value: OpportunityStatus) => setFormStatus(value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="published">Published</SelectItem>
+                      <SelectItem value="archived">Archived</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Difficulty Level</Label>
+                  <Select value={formDifficulty.toString()} onValueChange={(value) => setFormDifficulty(parseInt(value))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select difficulty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5].map((level) => (
+                        <SelectItem key={level} value={level.toString()}>Level {level}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreate} disabled={createOpportunity.isPending}>
+                  {createOpportunity.isPending ? 'Creating...' : 'Create'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Edit Dialog */}
@@ -399,18 +416,18 @@ export default function OpportunityCMS() {
         </Dialog>
 
         {/* Opportunities Table */}
-        {opportunities.length > 0 ? (
-          <DataTable
-            data={opportunities}
-            columns={columns}
-            actions={actions}
-            onRowClick={(row) => openEdit(row)}
-          />
-        ) : (
-          <div className="text-center py-12 text-muted-foreground">
-            No opportunities found. Create your first opportunity to get started.
-          </div>
-        )}
+        <EnhancedDataTable
+          data={opportunities}
+          columns={columns}
+          isLoading={isLoading}
+          searchPlaceholder="Search opportunities..."
+          filterableColumns={[
+            { id: 'category', title: 'Category', options: categoryFilterOptions },
+            { id: 'status', title: 'Status', options: statusFilterOptions },
+          ]}
+          onRowClick={(row) => openEdit(row)}
+          emptyMessage="No opportunities found. Create your first opportunity to get started."
+        />
       </div>
     </AdminLayout>
   );
