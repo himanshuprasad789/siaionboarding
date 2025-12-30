@@ -16,6 +16,8 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { useTicketById, useUpdateTicket, useWorkflowStages } from "@/hooks/useTickets";
+import { useWorkflowFields, useTicketFieldValues } from "@/hooks/useWorkflowFields";
+import { CustomFieldRenderer } from "@/components/tickets/CustomFieldRenderer";
 import { CommandCenterLayout } from "@/components/command/CommandCenterLayout";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -32,6 +34,8 @@ export default function TicketDetailPage() {
   const { ticketId } = useParams<{ ticketId: string }>();
   const { data: ticket, isLoading } = useTicketById(ticketId);
   const { data: stages } = useWorkflowStages(ticket?.related_workflow_id || undefined);
+  const { data: customFields = [] } = useWorkflowFields(ticket?.related_workflow_id || undefined);
+  const { data: fieldValues = [] } = useTicketFieldValues(ticketId);
   const updateTicket = useUpdateTicket();
 
   const currentStageIndex = stages?.findIndex(s => s.id === ticket?.current_stage_id) ?? -1;
@@ -205,6 +209,31 @@ export default function TicketDetailPage() {
                 </p>
               </CardContent>
             </Card>
+
+            {/* Custom Fields Section */}
+            {customFields.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Custom Fields</CardTitle>
+                  <CardDescription>
+                    Additional fields specific to this workflow
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {customFields.map((field) => {
+                    const value = fieldValues.find(v => v.field_id === field.id);
+                    return (
+                      <CustomFieldRenderer
+                        key={field.id}
+                        field={field}
+                        value={value}
+                        ticketId={ticket.id}
+                      />
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar */}
