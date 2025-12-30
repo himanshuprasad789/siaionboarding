@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, AlertCircle, FileText, Clock, User, CheckCircle2 } from "lucide-react";
 import { useWorkflowById } from "@/hooks/useWorkflows";
 import { useTicketsByWorkflow, useWorkflowStages, Ticket } from "@/hooks/useTickets";
-import { useWorkflowFields, useTicketFieldValues } from "@/hooks/useWorkflowFields";
+import { useWorkflowFields } from "@/hooks/useWorkflowFields";
 import { CommandCenterLayout } from "@/components/command/CommandCenterLayout";
 import { EnhancedDataTable } from "@/components/ui/enhanced-data-table";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 import { ColumnDef } from "@tanstack/react-table";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { InlinePrioritySelect } from "@/components/tickets/InlinePrioritySelect";
+import { InlineAssigneeSelect } from "@/components/tickets/InlineAssigneeSelect";
+import { InlineDatePicker } from "@/components/tickets/InlineDatePicker";
 
 const PRIORITY_CONFIG = {
   low: { label: "Low", variant: "secondary" as const },
@@ -133,9 +136,14 @@ export default function WorkflowPage() {
       accessorKey: "priority",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Priority" />,
       cell: ({ row }) => {
-        const priority = row.getValue("priority") as keyof typeof PRIORITY_CONFIG;
-        const config = PRIORITY_CONFIG[priority];
-        return <Badge variant={config.variant}>{config.label}</Badge>;
+        const priority = row.getValue("priority") as string;
+        return (
+          <InlinePrioritySelect
+            ticketId={row.original.id}
+            currentPriority={priority}
+            workflowId={workflowId}
+          />
+        );
       },
       meta: {
         filterType: 'select' as const,
@@ -156,7 +164,12 @@ export default function WorkflowPage() {
       accessorKey: "assigned_to_name",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Assigned To" />,
       cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.getValue("assigned_to_name") || "Unassigned"}</span>
+        <InlineAssigneeSelect
+          ticketId={row.original.id}
+          currentAssigneeId={row.original.assigned_to}
+          currentAssigneeName={row.getValue("assigned_to_name") as string | null}
+          workflowId={workflowId!}
+        />
       ),
       meta: {
         filterType: 'text' as const,
@@ -168,12 +181,12 @@ export default function WorkflowPage() {
       header: ({ column }) => <DataTableColumnHeader column={column} title="Due Date" />,
       cell: ({ row }) => {
         const date = row.getValue("due_date") as string | null;
-        if (!date) return <span className="text-muted-foreground">—</span>;
         return (
-          <div className="flex items-center gap-1 text-sm">
-            <Clock className="h-3 w-3 text-muted-foreground" />
-            {format(new Date(date), "MMM d, yyyy")}
-          </div>
+          <InlineDatePicker
+            ticketId={row.original.id}
+            currentDate={date}
+            workflowId={workflowId}
+          />
         );
       },
       meta: {
