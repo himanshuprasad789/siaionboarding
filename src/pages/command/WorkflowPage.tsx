@@ -1,13 +1,16 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, AlertCircle, FileText, Clock, User, CheckCircle2 } from "lucide-react";
 import { useWorkflowById } from "@/hooks/useWorkflows";
-import { useTicketsByWorkflow, useWorkflowStages } from "@/hooks/useTickets";
+import { useTicketsByWorkflow, useWorkflowStages, Ticket } from "@/hooks/useTickets";
 import { CommandCenterLayout } from "@/components/command/CommandCenterLayout";
+import { EnhancedDataTable } from "@/components/ui/enhanced-data-table";
+import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { ColumnDef } from "@tanstack/react-table";
 
 const PRIORITY_CONFIG = {
   low: { label: "Low", variant: "secondary" as const },
@@ -18,9 +21,92 @@ const PRIORITY_CONFIG = {
 
 export default function WorkflowPage() {
   const { workflowId } = useParams<{ workflowId: string }>();
+  const navigate = useNavigate();
   const { data: workflow, isLoading: workflowLoading } = useWorkflowById(workflowId);
   const { data: tickets, isLoading: ticketsLoading } = useTicketsByWorkflow(workflowId);
   const { data: stages } = useWorkflowStages(workflowId);
+
+  // Build stage filter options dynamically
+  const stageFilterOptions = stages?.map(stage => ({
+    label: stage.name,
+    value: stage.id,
+  })) || [];
+
+  const priorityFilterOptions = [
+    { label: "Low", value: "low" },
+    { label: "Medium", value: "medium" },
+    { label: "High", value: "high" },
+    { label: "Urgent", value: "urgent" },
+  ];
+
+  const columns: ColumnDef<Ticket>[] = [
+    {
+      accessorKey: "title",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
+      cell: ({ row }) => (
+        <div className="font-medium max-w-[300px] truncate">{row.getValue("title")}</div>
+      ),
+    },
+    {
+      accessorKey: "client_name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Client" />,
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <User className="h-4 w-4 text-muted-foreground" />
+          <span>{row.getValue("client_name") || "Unknown"}</span>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "current_stage_id",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Stage" />,
+      cell: ({ row }) => {
+        const stageName = row.original.current_stage_name;
+        return (
+          <Badge variant="outline" className="flex items-center gap-1 w-fit">
+            <CheckCircle2 className="h-3 w-3" />
+            {stageName || "Not Started"}
+          </Badge>
+        );
+      },
+      filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id));
+      },
+    },
+    {
+      accessorKey: "priority",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Priority" />,
+      cell: ({ row }) => {
+        const priority = row.getValue("priority") as keyof typeof PRIORITY_CONFIG;
+        const config = PRIORITY_CONFIG[priority];
+        return <Badge variant={config.variant}>{config.label}</Badge>;
+      },
+      filterFn: (row, id, value) => {
+        return value.includes(row.getValue(id));
+      },
+    },
+    {
+      accessorKey: "assigned_to_name",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Assigned To" />,
+      cell: ({ row }) => (
+        <span className="text-muted-foreground">{row.getValue("assigned_to_name") || "Unassigned"}</span>
+      ),
+    },
+    {
+      accessorKey: "due_date",
+      header: ({ column }) => <DataTableColumnHeader column={column} title="Due Date" />,
+      cell: ({ row }) => {
+        const date = row.getValue("due_date") as string | null;
+        if (!date) return <span className="text-muted-foreground">—</span>;
+        return (
+          <div className="flex items-center gap-1 text-sm">
+            <Clock className="h-3 w-3 text-muted-foreground" />
+            {format(new Date(date), "MMM d, yyyy")}
+          </div>
+        );
+      },
+    },
+  ];
 
   if (workflowLoading || ticketsLoading) {
     return (
@@ -46,11 +132,15 @@ export default function WorkflowPage() {
     );
   }
 
-  // Group tickets by current stage
+  // Group tickets by current stage for overview
   const ticketsByStage = stages?.reduce((acc, stage) => {
     acc[stage.id] = tickets?.filter(t => t.current_stage_id === stage.id) || [];
     return acc;
   }, {} as Record<string, typeof tickets>) || {};
+
+  const handleRowClick = (ticket: Ticket) => {
+    navigate(`/command/tickets/${ticket.id}`);
+  };
 
   return (
     <CommandCenterLayout>
@@ -96,32 +186,29 @@ export default function WorkflowPage() {
             <CardDescription>{tickets?.length || 0} tickets in this workflow</CardDescription>
           </CardHeader>
           <CardContent>
-            {tickets && tickets.length > 0 ? (
-              <div className="space-y-3">
-                {tickets.map((ticket) => (
-                  <Link key={ticket.id} to={`/command/tickets/${ticket.id}`} className="block p-4 rounded-lg border hover:bg-accent transition-colors">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <h4 className="font-medium">{ticket.title}</h4>
-                        <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1"><User className="h-3 w-3" />{ticket.client_name}</span>
-                          {ticket.due_date && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{format(new Date(ticket.due_date), "MMM d")}</span>}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 items-center">
-                        <Badge variant={PRIORITY_CONFIG[ticket.priority].variant}>{PRIORITY_CONFIG[ticket.priority].label}</Badge>
-                        <Badge variant="outline" className="flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          {ticket.current_stage_name || "Not Started"}
-                        </Badge>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-8">No tickets yet.</p>
-            )}
+            <EnhancedDataTable
+              columns={columns}
+              data={tickets || []}
+              searchKey="title"
+              searchPlaceholder="Search tickets..."
+              filterableColumns={[
+                {
+                  id: "current_stage_id",
+                  title: "Stage",
+                  options: stageFilterOptions,
+                },
+                {
+                  id: "priority",
+                  title: "Priority",
+                  options: priorityFilterOptions,
+                },
+              ]}
+              onRowClick={handleRowClick}
+              isLoading={ticketsLoading}
+              pageSize={10}
+              emptyMessage="No tickets in this workflow yet."
+              getRowId={(row) => row.id}
+            />
           </CardContent>
         </Card>
       </div>
