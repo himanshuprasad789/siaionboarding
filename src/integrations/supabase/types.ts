@@ -495,6 +495,48 @@ export type Database = {
           },
         ]
       }
+      ticket_field_values: {
+        Row: {
+          created_at: string
+          field_id: string
+          id: string
+          ticket_id: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          field_id: string
+          id?: string
+          ticket_id: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          created_at?: string
+          field_id?: string
+          id?: string
+          ticket_id?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_field_values_field_id_fkey"
+            columns: ["field_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_fields"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_field_values_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
           assigned_team: string | null
@@ -598,6 +640,59 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      workflow_fields: {
+        Row: {
+          created_at: string
+          default_value: Json | null
+          description: string | null
+          field_type: string
+          id: string
+          is_required: boolean | null
+          label: string
+          name: string
+          options: Json | null
+          order_index: number | null
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_value?: Json | null
+          description?: string | null
+          field_type: string
+          id?: string
+          is_required?: boolean | null
+          label: string
+          name: string
+          options?: Json | null
+          order_index?: number | null
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          created_at?: string
+          default_value?: Json | null
+          description?: string | null
+          field_type?: string
+          id?: string
+          is_required?: boolean | null
+          label?: string
+          name?: string
+          options?: Json | null
+          order_index?: number | null
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workflow_fields_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "workflows"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workflow_permissions: {
         Row: {
