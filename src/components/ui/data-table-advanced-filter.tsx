@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Table, Column } from '@tanstack/react-table';
+import { useState, useEffect } from 'react';
+import { Table } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
@@ -48,17 +48,67 @@ const DATE_OPERATORS = [
   { value: 'after', label: 'After' },
 ];
 
+// Custom filter function that handles advanced filter objects
+export function advancedFilterFn(
+  row: { getValue: (columnId: string) => unknown },
+  columnId: string,
+  filterValue: unknown
+): boolean {
+  const cellValue = row.getValue(columnId);
+  
+  // Handle advanced filter object format
+  if (typeof filterValue === 'object' && filterValue !== null && 'operator' in filterValue && 'value' in filterValue) {
+    const { operator, value } = filterValue as { operator: string; value: string };
+    const strCellValue = String(cellValue ?? '').toLowerCase();
+    const strFilterValue = String(value).toLowerCase();
+
+    switch (operator) {
+      case 'contains':
+        return strCellValue.includes(strFilterValue);
+      case 'equals':
+        return strCellValue === strFilterValue;
+      case 'startsWith':
+        return strCellValue.startsWith(strFilterValue);
+      case 'endsWith':
+        return strCellValue.endsWith(strFilterValue);
+      case 'gt':
+        return Number(cellValue) > Number(value);
+      case 'lt':
+        return Number(cellValue) < Number(value);
+      case 'gte':
+        return Number(cellValue) >= Number(value);
+      case 'lte':
+        return Number(cellValue) <= Number(value);
+      case 'before':
+        return new Date(String(cellValue)) < new Date(value);
+      case 'after':
+        return new Date(String(cellValue)) > new Date(value);
+      default:
+        return strCellValue.includes(strFilterValue);
+    }
+  }
+
+  // Handle array filter (faceted filter)
+  if (Array.isArray(filterValue)) {
+    return filterValue.includes(cellValue);
+  }
+
+  // Default string match
+  return String(cellValue ?? '').toLowerCase().includes(String(filterValue).toLowerCase());
+}
+
 export function DataTableAdvancedFilter<TData>({ table }: DataTableAdvancedFilterProps<TData>) {
   const [isOpen, setIsOpen] = useState(false);
   const [filters, setFilters] = useState<ActiveFilter[]>([]);
   const [pendingFilter, setPendingFilter] = useState<Partial<ActiveFilter>>({});
 
+  // Get all columns that have filterType meta OR can filter
   const columns = table.getAllColumns().filter((col) => {
     const meta = col.columnDef.meta as ColumnFilterMeta | undefined;
-    return meta?.filterType && col.getCanFilter();
+    return col.getCanFilter() && (meta?.filterType || col.id !== 'actions');
   });
 
-  const getOperators = (type: FilterType) => {
+  const getOperators = (type: FilterType | undefined) => {
     switch (type) {
       case 'number': return NUMBER_OPERATORS;
       case 'date': return DATE_OPERATORS;
@@ -72,6 +122,13 @@ export function DataTableAdvancedFilter<TData>({ table }: DataTableAdvancedFilte
   const getColumnMeta = (columnId: string): ColumnFilterMeta | undefined => {
     const col = columns.find((c) => c.id === columnId);
     return col?.columnDef.meta as ColumnFilterMeta | undefined;
+  };
+
+  const getColumnLabel = (columnId: string): string => {
+    const meta = getColumnMeta(columnId);
+    if (meta?.filterLabel) return meta.filterLabel;
+    // Capitalize and format column id
+    return columnId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
   const applyFilter = () => {
@@ -101,8 +158,12 @@ export function DataTableAdvancedFilter<TData>({ table }: DataTableAdvancedFilte
   };
 
   const applyFiltersToTable = (activeFilters: ActiveFilter[]) => {
-    table.resetColumnFilters();
+    // Reset all column filters first
+    table.getAllColumns().forEach(col => {
+      col.setFilterValue(undefined);
+    });
     
+    // Apply each filter
     activeFilters.forEach((filter) => {
       const column = table.getColumn(filter.columnId);
       if (column) {
@@ -111,8 +172,30 @@ export function DataTableAdvancedFilter<TData>({ table }: DataTableAdvancedFilte
     });
   };
 
+  // Sync filters from table state on mount
+  useEffect(() => {
+    const tableFilters = table.getState().columnFilters;
+    const syncedFilters: ActiveFilter[] = [];
+    
+    tableFilters.forEach(cf => {
+      const value = cf.value;
+      if (typeof value === 'object' && value !== null && 'operator' in value && 'value' in value) {
+        syncedFilters.push({
+          columnId: cf.id,
+          operator: (value as { operator: string; value: string }).operator,
+          value: (value as { operator: string; value: string }).value,
+        });
+      }
+    });
+    
+    if (syncedFilters.length > 0) {
+      setFilters(syncedFilters);
+    }
+  }, []);
+
   const selectedColumn = pendingFilter.columnId ? columns.find(c => c.id === pendingFilter.columnId) : null;
   const selectedMeta = selectedColumn?.columnDef.meta as ColumnFilterMeta | undefined;
+  const filterType = selectedMeta?.filterType || 'text';
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -130,7 +213,7 @@ export function DataTableAdvancedFilter<TData>({ table }: DataTableAdvancedFilte
       <PopoverContent className="w-96 p-4" align="start">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h4 className="font-medium">Filters</h4>
+            <h4 className="font-medium">Advanced Filters</h4>
             {filters.length > 0 && (
               <Button variant="ghost" size="sm" onClick={clearAllFilters}>
                 Clear all
@@ -142,15 +225,15 @@ export function DataTableAdvancedFilter<TData>({ table }: DataTableAdvancedFilte
           {filters.length > 0 && (
             <div className="space-y-2">
               {filters.map((filter, index) => {
-                const meta = getColumnMeta(filter.columnId);
+                const label = getColumnLabel(filter.columnId);
                 return (
                   <div
                     key={index}
                     className="flex items-center gap-2 rounded-md bg-muted px-2 py-1.5 text-sm"
                   >
-                    <span className="font-medium">{meta?.filterLabel || filter.columnId}</span>
+                    <span className="font-medium">{label}</span>
                     <span className="text-muted-foreground">{filter.operator}</span>
-                    <span>{Array.isArray(filter.value) ? filter.value.join(', ') : filter.value}</span>
+                    <span className="truncate max-w-[100px]">{Array.isArray(filter.value) ? filter.value.join(', ') : filter.value}</span>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -179,18 +262,15 @@ export function DataTableAdvancedFilter<TData>({ table }: DataTableAdvancedFilte
                 <SelectValue placeholder="Select column..." />
               </SelectTrigger>
               <SelectContent>
-                {columns.map((col) => {
-                  const meta = col.columnDef.meta as ColumnFilterMeta | undefined;
-                  return (
-                    <SelectItem key={col.id} value={col.id}>
-                      {meta?.filterLabel || col.id}
-                    </SelectItem>
-                  );
-                })}
+                {columns.map((col) => (
+                  <SelectItem key={col.id} value={col.id}>
+                    {getColumnLabel(col.id)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
-            {pendingFilter.columnId && selectedMeta && (
+            {pendingFilter.columnId && (
               <>
                 <Select
                   value={pendingFilter.operator || ''}
@@ -200,7 +280,7 @@ export function DataTableAdvancedFilter<TData>({ table }: DataTableAdvancedFilte
                     <SelectValue placeholder="Select operator..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {getOperators(selectedMeta.filterType || 'text').map((op) => (
+                    {getOperators(filterType).map((op) => (
                       <SelectItem key={op.value} value={op.value}>
                         {op.label}
                       </SelectItem>
@@ -210,7 +290,7 @@ export function DataTableAdvancedFilter<TData>({ table }: DataTableAdvancedFilte
 
                 {pendingFilter.operator && (
                   <>
-                    {selectedMeta.filterType === 'select' && selectedMeta.filterOptions ? (
+                    {filterType === 'select' && selectedMeta?.filterOptions ? (
                       <Select
                         value={String(pendingFilter.value || '')}
                         onValueChange={(value) => setPendingFilter(prev => ({ ...prev, value }))}
@@ -226,7 +306,7 @@ export function DataTableAdvancedFilter<TData>({ table }: DataTableAdvancedFilte
                           ))}
                         </SelectContent>
                       </Select>
-                    ) : selectedMeta.filterType === 'boolean' ? (
+                    ) : filterType === 'boolean' ? (
                       <Select
                         value={String(pendingFilter.value || '')}
                         onValueChange={(value) => setPendingFilter(prev => ({ ...prev, value }))}
@@ -239,13 +319,13 @@ export function DataTableAdvancedFilter<TData>({ table }: DataTableAdvancedFilte
                           <SelectItem value="false">No</SelectItem>
                         </SelectContent>
                       </Select>
-                    ) : selectedMeta.filterType === 'date' ? (
+                    ) : filterType === 'date' ? (
                       <Input
                         type="date"
                         value={String(pendingFilter.value || '')}
                         onChange={(e) => setPendingFilter(prev => ({ ...prev, value: e.target.value }))}
                       />
-                    ) : selectedMeta.filterType === 'number' ? (
+                    ) : filterType === 'number' ? (
                       <Input
                         type="number"
                         placeholder="Enter value..."
@@ -269,6 +349,12 @@ export function DataTableAdvancedFilter<TData>({ table }: DataTableAdvancedFilte
               </>
             )}
           </div>
+
+          {columns.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No filterable columns available
+            </p>
+          )}
         </div>
       </PopoverContent>
     </Popover>

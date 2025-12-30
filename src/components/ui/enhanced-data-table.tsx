@@ -10,7 +10,7 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
-  Row,
+  FilterFn,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -24,6 +24,7 @@ import { DataTableToolbar } from "@/components/ui/data-table-toolbar";
 import { DataTablePagination } from "@/components/ui/data-table-pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { advancedFilterFn } from "@/components/ui/data-table-advanced-filter";
 
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -43,6 +44,12 @@ export interface DataTableProps<TData, TValue> {
   emptyMessage?: string;
   getRowId?: (row: TData) => string;
 }
+
+// Custom global filter that uses advanced filter logic
+const globalFilterFn: FilterFn<unknown> = (row, columnId, filterValue) => {
+  const cellValue = row.getValue(columnId);
+  return String(cellValue ?? '').toLowerCase().includes(String(filterValue).toLowerCase());
+};
 
 export function EnhancedDataTable<TData, TValue>({
   columns,
@@ -64,9 +71,17 @@ export function EnhancedDataTable<TData, TValue>({
   const [rowSelection, setRowSelection] = React.useState({});
   const [globalFilter, setGlobalFilter] = React.useState("");
 
+  // Add default filter function to columns that don't have one
+  const columnsWithFilterFn = React.useMemo(() => {
+    return columns.map(col => ({
+      ...col,
+      filterFn: col.filterFn || advancedFilterFn,
+    }));
+  }, [columns]);
+
   const table = useReactTable({
     data,
-    columns,
+    columns: columnsWithFilterFn,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),

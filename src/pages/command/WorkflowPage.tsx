@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -5,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, AlertCircle, FileText, Clock, User, CheckCircle2 } from "lucide-react";
 import { useWorkflowById } from "@/hooks/useWorkflows";
 import { useTicketsByWorkflow, useWorkflowStages, Ticket } from "@/hooks/useTickets";
+import { useWorkflowFields, useTicketFieldValues } from "@/hooks/useWorkflowFields";
 import { CommandCenterLayout } from "@/components/command/CommandCenterLayout";
 import { EnhancedDataTable } from "@/components/ui/enhanced-data-table";
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ColumnDef } from "@tanstack/react-table";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 const PRIORITY_CONFIG = {
   low: { label: "Low", variant: "secondary" as const },
@@ -19,12 +23,44 @@ const PRIORITY_CONFIG = {
   urgent: { label: "Urgent", variant: "destructive" as const },
 };
 
+// Hook to fetch all field values for tickets in a workflow
+function useTicketFieldValuesByWorkflow(ticketIds: string[]) {
+  return useQuery({
+    queryKey: ['ticket-field-values-bulk', ticketIds],
+    queryFn: async () => {
+      if (ticketIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from('ticket_field_values')
+        .select('*')
+        .in('ticket_id', ticketIds);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: ticketIds.length > 0,
+  });
+}
+
 export default function WorkflowPage() {
   const { workflowId } = useParams<{ workflowId: string }>();
   const navigate = useNavigate();
   const { data: workflow, isLoading: workflowLoading } = useWorkflowById(workflowId);
   const { data: tickets, isLoading: ticketsLoading } = useTicketsByWorkflow(workflowId);
   const { data: stages } = useWorkflowStages(workflowId);
+  const { data: workflowFields } = useWorkflowFields(workflowId);
+  
+  // Fetch all field values for tickets in this workflow
+  const ticketIds = useMemo(() => tickets?.map(t => t.id) || [], [tickets]);
+  const { data: allFieldValues } = useTicketFieldValuesByWorkflow(ticketIds);
+
+  // Create a map of ticket_id -> { field_id -> value }
+  const fieldValuesMap = useMemo(() => {
+    const map: Record<string, Record<string, unknown>> = {};
+    allFieldValues?.forEach(fv => {
+      if (!map[fv.ticket_id]) map[fv.ticket_id] = {};
+      map[fv.ticket_id][fv.field_id] = fv.value;
+    });
+    return map;
+  }, [allFieldValues]);
 
   // Build stage filter options dynamically
   const stageFilterOptions = stages?.map(stage => ({
@@ -39,13 +75,18 @@ export default function WorkflowPage() {
     { label: "Urgent", value: "urgent" },
   ];
 
-  const columns: ColumnDef<Ticket>[] = [
+  // Base columns
+  const baseColumns: ColumnDef<Ticket>[] = [
     {
       accessorKey: "title",
       header: ({ column }) => <DataTableColumnHeader column={column} title="Title" />,
       cell: ({ row }) => (
         <div className="font-medium max-w-[300px] truncate">{row.getValue("title")}</div>
       ),
+      meta: {
+        filterType: 'text' as const,
+        filterLabel: 'Title',
+      },
     },
     {
       accessorKey: "client_name",
@@ -56,6 +97,10 @@ export default function WorkflowPage() {
           <span>{row.getValue("client_name") || "Unknown"}</span>
         </div>
       ),
+      meta: {
+        filterType: 'text' as const,
+        filterLabel: 'Client',
+      },
     },
     {
       accessorKey: "current_stage_id",
@@ -69,8 +114,19 @@ export default function WorkflowPage() {
           </Badge>
         );
       },
+      meta: {
+        filterType: 'select' as const,
+        filterLabel: 'Stage',
+        filterOptions: stageFilterOptions,
+      },
       filterFn: (row, id, value) => {
-        return value.includes(row.getValue(id));
+        if (typeof value === 'object' && value !== null && 'value' in value) {
+          return row.getValue(id) === value.value;
+        }
+        if (Array.isArray(value)) {
+          return value.includes(row.getValue(id));
+        }
+        return row.getValue(id) === value;
       },
     },
     {
@@ -81,8 +137,19 @@ export default function WorkflowPage() {
         const config = PRIORITY_CONFIG[priority];
         return <Badge variant={config.variant}>{config.label}</Badge>;
       },
+      meta: {
+        filterType: 'select' as const,
+        filterLabel: 'Priority',
+        filterOptions: priorityFilterOptions,
+      },
       filterFn: (row, id, value) => {
-        return value.includes(row.getValue(id));
+        if (typeof value === 'object' && value !== null && 'value' in value) {
+          return row.getValue(id) === value.value;
+        }
+        if (Array.isArray(value)) {
+          return value.includes(row.getValue(id));
+        }
+        return row.getValue(id) === value;
       },
     },
     {
@@ -91,6 +158,10 @@ export default function WorkflowPage() {
       cell: ({ row }) => (
         <span className="text-muted-foreground">{row.getValue("assigned_to_name") || "Unassigned"}</span>
       ),
+      meta: {
+        filterType: 'text' as const,
+        filterLabel: 'Assigned To',
+      },
     },
     {
       accessorKey: "due_date",
@@ -105,8 +176,82 @@ export default function WorkflowPage() {
           </div>
         );
       },
+      meta: {
+        filterType: 'date' as const,
+        filterLabel: 'Due Date',
+      },
     },
   ];
+
+  // Dynamic columns for custom fields
+  const customFieldColumns: ColumnDef<Ticket>[] = useMemo(() => {
+    if (!workflowFields || workflowFields.length === 0) return [];
+    
+    return workflowFields.map((field) => ({
+      id: `custom_${field.id}`,
+      accessorFn: (row: Ticket) => {
+        const values = fieldValuesMap[row.id];
+        return values?.[field.id] ?? null;
+      },
+      header: ({ column }) => <DataTableColumnHeader column={column} title={field.label} />,
+      cell: ({ row }) => {
+        const values = fieldValuesMap[row.id];
+        const value = values?.[field.id];
+        
+        if (value === null || value === undefined) {
+          return <span className="text-muted-foreground">—</span>;
+        }
+
+        // Render based on field type
+        switch (field.field_type) {
+          case 'checkbox':
+            return <Badge variant={value ? "default" : "secondary"}>{value ? "Yes" : "No"}</Badge>;
+          case 'select':
+            const option = field.options?.find(o => o.value === value);
+            return <Badge variant="outline">{option?.label || String(value)}</Badge>;
+          case 'multiselect':
+            const selectedValues = Array.isArray(value) ? value : [];
+            return (
+              <div className="flex flex-wrap gap-1">
+                {selectedValues.map((v: string) => {
+                  const opt = field.options?.find(o => o.value === v);
+                  return <Badge key={v} variant="outline" className="text-xs">{opt?.label || v}</Badge>;
+                })}
+              </div>
+            );
+          case 'date':
+            try {
+              return <span className="text-sm">{format(new Date(String(value)), "MMM d, yyyy")}</span>;
+            } catch {
+              return <span className="text-sm">{String(value)}</span>;
+            }
+          case 'url':
+            return (
+              <a href={String(value)} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate max-w-[150px] block">
+                {String(value)}
+              </a>
+            );
+          default:
+            return <span className="text-sm truncate max-w-[150px] block">{String(value)}</span>;
+        }
+      },
+      meta: {
+        filterType: field.field_type === 'select' || field.field_type === 'multiselect' 
+          ? 'select' as const 
+          : field.field_type === 'number' 
+            ? 'number' as const 
+            : field.field_type === 'date' 
+              ? 'date' as const 
+              : field.field_type === 'checkbox' 
+                ? 'boolean' as const 
+                : 'text' as const,
+        filterLabel: field.label,
+        filterOptions: field.options || [],
+      },
+    }));
+  }, [workflowFields, fieldValuesMap]);
+
+  const columns = useMemo(() => [...baseColumns, ...customFieldColumns], [baseColumns, customFieldColumns]);
 
   if (workflowLoading || ticketsLoading) {
     return (
