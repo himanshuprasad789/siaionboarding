@@ -11,6 +11,7 @@ export interface Ticket extends TicketRow {
   client_name?: string;
   assigned_to_name?: string;
   workflow_name?: string;
+  current_stage_name?: string;
 }
 
 export function useTickets() {
@@ -210,6 +211,7 @@ export function useCreateTicket() {
       due_date?: string;
       priority?: 'low' | 'medium' | 'high' | 'urgent';
       related_workflow_id?: string;
+      current_stage_id?: string;
     }) => {
       const { data, error } = await supabase
         .from("tickets")
@@ -225,6 +227,7 @@ export function useCreateTicket() {
       queryClient.invalidateQueries({ queryKey: ["client-tickets"] });
       queryClient.invalidateQueries({ queryKey: ["tickets-by-team"] });
       queryClient.invalidateQueries({ queryKey: ["tickets-by-user-teams"] });
+      queryClient.invalidateQueries({ queryKey: ["tickets-by-workflow"] });
     },
   });
 }
@@ -378,16 +381,7 @@ export function useTicketsByWorkflow(workflowId: string | undefined) {
     queryFn: async (): Promise<Ticket[]> => {
       if (!workflowId) return [];
 
-      // First get client_workflows for this workflow
-      const { data: clientWorkflows } = await supabase
-        .from("client_workflows")
-        .select("id")
-        .eq("workflow_id", workflowId);
-
-      if (!clientWorkflows || clientWorkflows.length === 0) return [];
-
-      const clientWorkflowIds = clientWorkflows.map((cw) => cw.id);
-
+      // Directly query tickets by related_workflow_id (now references workflows table)
       const { data, error } = await supabase
         .from("tickets")
         .select(`
@@ -395,9 +389,14 @@ export function useTicketsByWorkflow(workflowId: string | undefined) {
           client_profiles!tickets_client_id_fkey(
             id,
             user_id
+          ),
+          workflow_stages!tickets_current_stage_id_fkey(
+            id,
+            name,
+            order_index
           )
         `)
-        .in("related_workflow_id", clientWorkflowIds)
+        .eq("related_workflow_id", workflowId)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -405,7 +404,7 @@ export function useTicketsByWorkflow(workflowId: string | undefined) {
         throw error;
       }
 
-      // Fetch profile names
+      // Fetch profile names and enrich with stage info
       const ticketsWithNames = await Promise.all(
         (data || []).map(async (ticket) => {
           let clientName = "Unknown Client";
@@ -433,11 +432,37 @@ export function useTicketsByWorkflow(workflowId: string | undefined) {
             ...ticket,
             client_name: clientName,
             assigned_to_name: assignedToName,
+            current_stage_name: (ticket.workflow_stages as any)?.name || "Not Started",
           };
         })
       );
 
       return ticketsWithNames;
+    },
+    enabled: !!user && !!workflowId,
+  });
+}
+
+export function useWorkflowStages(workflowId: string | undefined) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["workflow-stages", workflowId],
+    queryFn: async () => {
+      if (!workflowId) return [];
+
+      const { data, error } = await supabase
+        .from("workflow_stages")
+        .select("*")
+        .eq("workflow_id", workflowId)
+        .order("order_index");
+
+      if (error) {
+        console.error("Error fetching workflow stages:", error);
+        throw error;
+      }
+
+      return data || [];
     },
     enabled: !!user && !!workflowId,
   });

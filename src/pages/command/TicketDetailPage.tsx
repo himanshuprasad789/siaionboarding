@@ -10,19 +10,16 @@ import {
   Clock, 
   AlertCircle,
   Loader2,
-  MessageSquare 
+  MessageSquare,
+  ChevronRight,
+  ChevronLeft,
+  CheckCircle2
 } from "lucide-react";
-import { useTicketById, useUpdateTicket } from "@/hooks/useTickets";
+import { useTicketById, useUpdateTicket, useWorkflowStages } from "@/hooks/useTickets";
 import { CommandCenterLayout } from "@/components/command/CommandCenterLayout";
 import { format } from "date-fns";
 import { toast } from "sonner";
-
-const STATUS_CONFIG = {
-  open: { label: "Open", variant: "secondary" as const },
-  in_progress: { label: "In Progress", variant: "default" as const },
-  pending_review: { label: "Pending Review", variant: "outline" as const },
-  closed: { label: "Closed", variant: "secondary" as const },
-};
+import { cn } from "@/lib/utils";
 
 const PRIORITY_CONFIG = {
   low: { label: "Low", variant: "secondary" as const },
@@ -34,20 +31,35 @@ const PRIORITY_CONFIG = {
 export default function TicketDetailPage() {
   const { ticketId } = useParams<{ ticketId: string }>();
   const { data: ticket, isLoading } = useTicketById(ticketId);
+  const { data: stages } = useWorkflowStages(ticket?.related_workflow_id || undefined);
   const updateTicket = useUpdateTicket();
 
-  const handleStatusChange = async (newStatus: string) => {
+  const currentStageIndex = stages?.findIndex(s => s.id === ticket?.current_stage_id) ?? -1;
+  const canMoveNext = stages && currentStageIndex < stages.length - 1;
+  const canMovePrev = stages && currentStageIndex > 0;
+
+  const handleMoveToStage = async (stageId: string) => {
     if (!ticketId) return;
     
     try {
       await updateTicket.mutateAsync({
         id: ticketId,
-        updates: { status: newStatus as any },
+        updates: { current_stage_id: stageId },
       });
-      toast.success("Ticket status updated");
+      toast.success("Ticket moved to new stage");
     } catch (error) {
-      toast.error("Failed to update ticket status");
+      toast.error("Failed to move ticket");
     }
+  };
+
+  const handleMoveNext = () => {
+    if (!stages || !canMoveNext) return;
+    handleMoveToStage(stages[currentStageIndex + 1].id);
+  };
+
+  const handleMovePrev = () => {
+    if (!stages || !canMovePrev) return;
+    handleMoveToStage(stages[currentStageIndex - 1].id);
   };
 
   if (isLoading) {
@@ -77,8 +89,8 @@ export default function TicketDetailPage() {
     );
   }
 
-  const statusConfig = STATUS_CONFIG[ticket.status];
   const priorityConfig = PRIORITY_CONFIG[ticket.priority];
+  const currentStage = stages?.find(s => s.id === ticket.current_stage_id);
 
   return (
     <CommandCenterLayout>
@@ -95,8 +107,75 @@ export default function TicketDetailPage() {
             <p className="text-muted-foreground">Ticket ID: {ticket.id.slice(0, 8)}...</p>
           </div>
           <Badge variant={priorityConfig.variant}>{priorityConfig.label}</Badge>
-          <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+          <Badge variant="outline" className="flex items-center gap-1">
+            <CheckCircle2 className="h-3 w-3" />
+            {currentStage?.name || "Not Started"}
+          </Badge>
         </div>
+
+        {/* Stage Progress */}
+        {stages && stages.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Workflow Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                {stages.map((stage, index) => {
+                  const isCompleted = index < currentStageIndex;
+                  const isCurrent = stage.id === ticket.current_stage_id;
+                  return (
+                    <div key={stage.id} className="flex items-center">
+                      <button
+                        onClick={() => handleMoveToStage(stage.id)}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors min-w-fit",
+                          isCurrent && "border-primary bg-primary/10 text-primary",
+                          isCompleted && "border-green-500/50 bg-green-500/10 text-green-600",
+                          !isCurrent && !isCompleted && "border-border hover:bg-accent"
+                        )}
+                        disabled={updateTicket.isPending}
+                      >
+                        <div className={cn(
+                          "flex items-center justify-center w-5 h-5 rounded-full text-xs font-medium",
+                          isCurrent && "bg-primary text-primary-foreground",
+                          isCompleted && "bg-green-500 text-white",
+                          !isCurrent && !isCompleted && "bg-muted text-muted-foreground"
+                        )}>
+                          {isCompleted ? <CheckCircle2 className="h-3 w-3" /> : index + 1}
+                        </div>
+                        <span className="text-sm font-medium whitespace-nowrap">{stage.name}</span>
+                      </button>
+                      {index < stages.length - 1 && (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground mx-1 flex-shrink-0" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleMovePrev}
+                  disabled={!canMovePrev || updateTicket.isPending}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous Stage
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleMoveNext}
+                  disabled={!canMoveNext || updateTicket.isPending}
+                >
+                  Next Stage
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
@@ -109,54 +188,6 @@ export default function TicketDetailPage() {
                 <p className="text-muted-foreground whitespace-pre-wrap">
                   {ticket.description || "No description provided."}
                 </p>
-              </CardContent>
-            </Card>
-
-            {/* Status Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Actions</CardTitle>
-                <CardDescription>Update the ticket status</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {ticket.status !== "open" && (
-                    <Button
-                      variant="outline"
-                      onClick={() => handleStatusChange("open")}
-                      disabled={updateTicket.isPending}
-                    >
-                      Reopen
-                    </Button>
-                  )}
-                  {ticket.status !== "in_progress" && (
-                    <Button
-                      variant="outline"
-                      onClick={() => handleStatusChange("in_progress")}
-                      disabled={updateTicket.isPending}
-                    >
-                      Start Progress
-                    </Button>
-                  )}
-                  {ticket.status !== "pending_review" && (
-                    <Button
-                      variant="outline"
-                      onClick={() => handleStatusChange("pending_review")}
-                      disabled={updateTicket.isPending}
-                    >
-                      Submit for Review
-                    </Button>
-                  )}
-                  {ticket.status !== "closed" && (
-                    <Button
-                      variant="default"
-                      onClick={() => handleStatusChange("closed")}
-                      disabled={updateTicket.isPending}
-                    >
-                      Close Ticket
-                    </Button>
-                  )}
-                </div>
               </CardContent>
             </Card>
 
