@@ -35,7 +35,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Plus, Trash2, Edit, Settings2, GripVertical } from 'lucide-react';
+import { Loader2, Plus, Trash2, Edit, Settings2, GripVertical, FileText } from 'lucide-react';
+import { WorkflowFieldEditor } from '@/components/admin/WorkflowFieldEditor';
 import { useWorkflows, useWorkflowPermissions } from '@/hooks/useWorkflows';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -55,7 +56,8 @@ export default function WorkflowPermissions() {
   const { data: permissions = [], isLoading: permissionsLoading } = useWorkflowPermissions();
   
   const [activeWorkflow, setActiveWorkflow] = useState<string | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState<'workflows' | 'permissions'>('workflows');
+  const [activeTab, setActiveTab] = useState<'workflows' | 'permissions' | 'fields'>('workflows');
+  const [selectedFieldsWorkflow, setSelectedFieldsWorkflow] = useState<string | undefined>(undefined);
   
   // Create workflow dialog state
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -453,8 +455,8 @@ export default function WorkflowPermissions() {
           </Dialog>
         </div>
 
-        {/* Main Tabs: Workflows vs Permissions */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'workflows' | 'permissions')}>
+        {/* Main Tabs: Workflows vs Permissions vs Custom Fields */}
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'workflows' | 'permissions' | 'fields')}>
           <TabsList>
             <TabsTrigger value="workflows">
               <Settings2 className="h-4 w-4 mr-2" />
@@ -463,6 +465,10 @@ export default function WorkflowPermissions() {
             <TabsTrigger value="permissions">
               <GripVertical className="h-4 w-4 mr-2" />
               Stage Permissions
+            </TabsTrigger>
+            <TabsTrigger value="fields">
+              <FileText className="h-4 w-4 mr-2" />
+              Custom Fields
             </TabsTrigger>
           </TabsList>
 
@@ -715,6 +721,50 @@ export default function WorkflowPermissions() {
                 ))}
               </Tabs>
             )}
+          </TabsContent>
+
+          {/* Custom Fields Tab */}
+          <TabsContent value="fields" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Custom Fields</CardTitle>
+                <CardDescription>
+                  Define custom fields for each workflow. These fields will appear on tickets assigned to that workflow.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {workflows.length === 0 ? (
+                  <p className="text-muted-foreground">No workflows found. Create a workflow first.</p>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <Label>Select Workflow</Label>
+                      <Select
+                        value={selectedFieldsWorkflow || ''}
+                        onValueChange={setSelectedFieldsWorkflow}
+                      >
+                        <SelectTrigger className="w-[300px]">
+                          <SelectValue placeholder="Select a workflow..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {workflows.map((workflow) => (
+                            <SelectItem key={workflow.id} value={workflow.id}>
+                              {workflow.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {selectedFieldsWorkflow && (
+                      <WorkflowFieldEditor
+                        workflowId={selectedFieldsWorkflow}
+                        workflowName={workflows.find(w => w.id === selectedFieldsWorkflow)?.name || ''}
+                      />
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 
