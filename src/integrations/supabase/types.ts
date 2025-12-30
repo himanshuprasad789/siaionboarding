@@ -502,6 +502,7 @@ export type Database = {
           client_id: string
           created_at: string
           created_by: string | null
+          current_stage_id: string | null
           description: string | null
           due_date: string | null
           id: string
@@ -518,6 +519,7 @@ export type Database = {
           client_id: string
           created_at?: string
           created_by?: string | null
+          current_stage_id?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -534,6 +536,7 @@ export type Database = {
           client_id?: string
           created_at?: string
           created_by?: string | null
+          current_stage_id?: string | null
           description?: string | null
           due_date?: string | null
           id?: string
@@ -553,6 +556,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tickets_current_stage_id_fkey"
+            columns: ["current_stage_id"]
+            isOneToOne: false
+            referencedRelation: "workflow_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tickets_related_evidence_id_fkey"
             columns: ["related_evidence_id"]
             isOneToOne: false
@@ -563,7 +573,7 @@ export type Database = {
             foreignKeyName: "tickets_related_workflow_id_fkey"
             columns: ["related_workflow_id"]
             isOneToOne: false
-            referencedRelation: "client_workflows"
+            referencedRelation: "workflows"
             referencedColumns: ["id"]
           },
         ]

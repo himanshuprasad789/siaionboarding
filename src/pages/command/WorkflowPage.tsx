@@ -2,18 +2,12 @@ import { useParams, Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Loader2, AlertCircle, FileText, Clock, User } from "lucide-react";
+import { ArrowLeft, Loader2, AlertCircle, FileText, Clock, User, CheckCircle2 } from "lucide-react";
 import { useWorkflowById } from "@/hooks/useWorkflows";
-import { useTicketsByWorkflow } from "@/hooks/useTickets";
+import { useTicketsByWorkflow, useWorkflowStages } from "@/hooks/useTickets";
 import { CommandCenterLayout } from "@/components/command/CommandCenterLayout";
 import { format } from "date-fns";
-
-const STATUS_CONFIG = {
-  open: { label: "Open", variant: "secondary" as const },
-  in_progress: { label: "In Progress", variant: "default" as const },
-  pending_review: { label: "Pending Review", variant: "outline" as const },
-  closed: { label: "Closed", variant: "secondary" as const },
-};
+import { cn } from "@/lib/utils";
 
 const PRIORITY_CONFIG = {
   low: { label: "Low", variant: "secondary" as const },
@@ -26,6 +20,7 @@ export default function WorkflowPage() {
   const { workflowId } = useParams<{ workflowId: string }>();
   const { data: workflow, isLoading: workflowLoading } = useWorkflowById(workflowId);
   const { data: tickets, isLoading: ticketsLoading } = useTicketsByWorkflow(workflowId);
+  const { data: stages } = useWorkflowStages(workflowId);
 
   if (workflowLoading || ticketsLoading) {
     return (
@@ -51,6 +46,12 @@ export default function WorkflowPage() {
     );
   }
 
+  // Group tickets by current stage
+  const ticketsByStage = stages?.reduce((acc, stage) => {
+    acc[stage.id] = tickets?.filter(t => t.current_stage_id === stage.id) || [];
+    return acc;
+  }, {} as Record<string, typeof tickets>) || {};
+
   return (
     <CommandCenterLayout>
       <div className="space-y-6">
@@ -65,10 +66,34 @@ export default function WorkflowPage() {
           <Badge variant="outline" className="capitalize">{workflow.team}</Badge>
         </div>
 
+        {/* Stages Overview */}
+        {stages && stages.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {stages.map((stage, index) => {
+              const stageTickets = ticketsByStage[stage.id] || [];
+              return (
+                <div 
+                  key={stage.id}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg border bg-card min-w-fit",
+                    stageTickets.length > 0 && "border-primary/50"
+                  )}
+                >
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                    {index + 1}
+                  </div>
+                  <span className="text-sm font-medium">{stage.name}</span>
+                  <Badge variant="secondary" className="ml-1">{stageTickets.length}</Badge>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" />Tickets</CardTitle>
-            <CardDescription>{tickets?.length || 0} tickets</CardDescription>
+            <CardDescription>{tickets?.length || 0} tickets in this workflow</CardDescription>
           </CardHeader>
           <CardContent>
             {tickets && tickets.length > 0 ? (
@@ -83,9 +108,12 @@ export default function WorkflowPage() {
                           {ticket.due_date && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{format(new Date(ticket.due_date), "MMM d")}</span>}
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-center">
                         <Badge variant={PRIORITY_CONFIG[ticket.priority].variant}>{PRIORITY_CONFIG[ticket.priority].label}</Badge>
-                        <Badge variant={STATUS_CONFIG[ticket.status].variant}>{STATUS_CONFIG[ticket.status].label}</Badge>
+                        <Badge variant="outline" className="flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          {ticket.current_stage_name || "Not Started"}
+                        </Badge>
                       </div>
                     </div>
                   </Link>
