@@ -38,7 +38,17 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { Plus, Check, ChevronsUpDown } from 'lucide-react';
+import { Plus, Check, ChevronsUpDown, AlertTriangle } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useClientsWithDetails, useStaffMembers, ClientWithDetails, StaffMemberWithDetails } from '@/hooks/useAdminData';
 import { useTeams } from '@/hooks/useTeams';
 import { useAllProfiles } from '@/hooks/useProfiles';
@@ -59,6 +69,12 @@ export default function UserManagement() {
   const [selectedRole, setSelectedRole] = useState<AppRole | ''>('');
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [userSelectOpen, setUserSelectOpen] = useState(false);
+  
+  // Role change/remove state
+  const [isChangeRoleOpen, setIsChangeRoleOpen] = useState(false);
+  const [isRemoveRoleOpen, setIsRemoveRoleOpen] = useState(false);
+  const [selectedStaffMember, setSelectedStaffMember] = useState<StaffMemberWithDetails | null>(null);
+  const [newRoleForChange, setNewRoleForChange] = useState<AppRole | ''>('');
   
   const { data: clients = [], isLoading: clientsLoading } = useClientsWithDetails();
   const { data: staffMembers = [], isLoading: staffLoading } = useStaffMembers();
@@ -113,6 +129,104 @@ export default function UserManagement() {
       role: selectedRole as AppRole, 
       teamId: selectedTeamId || undefined 
     });
+  };
+
+  // Change role mutation
+  const changeRoleMutation = useMutation({
+    mutationFn: async ({ userId, oldRole, newRole }: { userId: string; oldRole: AppRole; newRole: AppRole }) => {
+      // Delete existing role
+      const { error: deleteError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('role', oldRole);
+      if (deleteError) throw deleteError;
+
+      // Insert new role
+      const { error: insertError } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role: newRole });
+      if (insertError) throw insertError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff-members'] });
+      setIsChangeRoleOpen(false);
+      setSelectedStaffMember(null);
+      setNewRoleForChange('');
+      toast.success('Role changed successfully');
+    },
+    onError: (error) => {
+      console.error('Error changing role:', error);
+      toast.error('Failed to change role');
+    },
+  });
+
+  // Remove role mutation
+  const removeRoleMutation = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: AppRole }) => {
+      // Delete the role
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId)
+        .eq('role', role);
+      if (roleError) throw roleError;
+
+      // Clear team assignment
+      const { error: teamError } = await supabase
+        .from('profiles')
+        .update({ team_id: null })
+        .eq('id', userId);
+      if (teamError) throw teamError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff-members'] });
+      queryClient.invalidateQueries({ queryKey: ['clients-with-details'] });
+      setIsRemoveRoleOpen(false);
+      setSelectedStaffMember(null);
+      toast.success('Staff role removed');
+    },
+    onError: (error) => {
+      console.error('Error removing role:', error);
+      toast.error('Failed to remove role');
+    },
+  });
+
+  const handleChangeRole = () => {
+    if (!selectedStaffMember || !newRoleForChange) {
+      toast.error('Please select a new role');
+      return;
+    }
+    const currentRole = selectedStaffMember.roles[0]?.role as AppRole;
+    if (!currentRole) return;
+    
+    changeRoleMutation.mutate({
+      userId: selectedStaffMember.id,
+      oldRole: currentRole,
+      newRole: newRoleForChange as AppRole,
+    });
+  };
+
+  const handleRemoveRole = () => {
+    if (!selectedStaffMember) return;
+    const currentRole = selectedStaffMember.roles[0]?.role as AppRole;
+    if (!currentRole) return;
+    
+    removeRoleMutation.mutate({
+      userId: selectedStaffMember.id,
+      role: currentRole,
+    });
+  };
+
+  const openChangeRoleDialog = (member: StaffMemberWithDetails) => {
+    setSelectedStaffMember(member);
+    setNewRoleForChange('');
+    setIsChangeRoleOpen(true);
+  };
+
+  const openRemoveRoleDialog = (member: StaffMemberWithDetails) => {
+    setSelectedStaffMember(member);
+    setIsRemoveRoleOpen(true);
   };
 
   const getInitials = (name: string | null | undefined) => {
@@ -325,8 +439,8 @@ export default function UserManagement() {
   const memberActions: DataTableAction<StaffMemberWithDetails>[] = [
     { label: 'View Profile', onClick: (row) => toast.info(`Viewing ${row.full_name}`) },
     { label: 'Edit', onClick: (row) => toast.info(`Editing ${row.full_name}`) },
-    { label: 'Change Role', onClick: (row) => toast.info(`Changing role for ${row.full_name}`) },
-    { label: 'Remove', onClick: (row) => toast.error(`Removing ${row.full_name}`), variant: 'destructive', separator: true },
+    { label: 'Change Role', onClick: (row) => openChangeRoleDialog(row) },
+    { label: 'Remove', onClick: (row) => openRemoveRoleDialog(row), variant: 'destructive', separator: true },
   ];
 
   const isLoading = clientsLoading || staffLoading;
@@ -520,6 +634,80 @@ export default function UserManagement() {
             />
           </TabsContent>
         </Tabs>
+
+        {/* Change Role Dialog */}
+        <Dialog open={isChangeRoleOpen} onOpenChange={setIsChangeRoleOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change Role</DialogTitle>
+              <DialogDescription>
+                Change the role for {selectedStaffMember?.full_name || 'this user'}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Current Role</Label>
+                <div className="p-2 bg-muted rounded-md">
+                  <Badge variant="outline">
+                    {selectedStaffMember?.roles[0]?.role ? 
+                      selectedStaffMember.roles[0].role.charAt(0).toUpperCase() + selectedStaffMember.roles[0].role.slice(1) 
+                      : 'None'}
+                  </Badge>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>New Role</Label>
+                <Select value={newRoleForChange} onValueChange={(v) => setNewRoleForChange(v as AppRole)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select new role..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="press">Press</SelectItem>
+                    <SelectItem value="research">Research</SelectItem>
+                    <SelectItem value="paper">Paper</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsChangeRoleOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleChangeRole} 
+                disabled={changeRoleMutation.isPending || !newRoleForChange || newRoleForChange === selectedStaffMember?.roles[0]?.role}
+              >
+                {changeRoleMutation.isPending ? 'Changing...' : 'Change Role'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Remove Role Confirmation Dialog */}
+        <AlertDialog open={isRemoveRoleOpen} onOpenChange={setIsRemoveRoleOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Remove Staff Role
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to remove <strong>{selectedStaffMember?.full_name}</strong> from the staff? 
+                They will lose access to all internal workflows and team features. This action can be undone by reassigning a role later.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleRemoveRole}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {removeRoleMutation.isPending ? 'Removing...' : 'Remove Role'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );
