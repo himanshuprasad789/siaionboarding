@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ColumnDef } from '@tanstack/react-table';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { EnhancedDataTable } from '@/components/ui/enhanced-data-table';
@@ -8,7 +8,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -26,14 +25,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Plus, Check, ChevronsUpDown } from 'lucide-react';
 import { useClientsWithDetails, useStaffMembers, ClientWithDetails, StaffMemberWithDetails } from '@/hooks/useAdminData';
 import { useTeams } from '@/hooks/useTeams';
+import { useAllProfiles } from '@/hooks/useProfiles';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Database } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -44,10 +58,20 @@ export default function UserManagement() {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedRole, setSelectedRole] = useState<AppRole | ''>('');
   const [selectedTeamId, setSelectedTeamId] = useState('');
+  const [userSelectOpen, setUserSelectOpen] = useState(false);
   
   const { data: clients = [], isLoading: clientsLoading } = useClientsWithDetails();
   const { data: staffMembers = [], isLoading: staffLoading } = useStaffMembers();
   const { data: teams = [] } = useTeams();
+  const { data: allProfiles = [] } = useAllProfiles();
+
+  // Get users who don't already have a staff role
+  const assignableUsers = useMemo(() => {
+    const staffUserIds = new Set(staffMembers.map(s => s.id));
+    return allProfiles.filter(profile => !staffUserIds.has(profile.id));
+  }, [allProfiles, staffMembers]);
+
+  const selectedUser = allProfiles.find(p => p.id === selectedUserId);
 
   const addRoleMutation = useMutation({
     mutationFn: async ({ userId, role, teamId }: { userId: string; role: AppRole; teamId?: string }) => {
@@ -352,18 +376,60 @@ export default function UserManagement() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label>User Email</Label>
-                  <Input 
-                    placeholder="Enter email of registered user"
-                    value={selectedUserId ? staffMembers.find(m => m.id === selectedUserId)?.email || '' : ''}
-                    onChange={(e) => {
-                      const email = e.target.value;
-                      const found = staffMembers.find(m => m.email === email);
-                      setSelectedUserId(found?.id || '');
-                    }}
-                  />
+                  <Label>Select User</Label>
+                  <Popover open={userSelectOpen} onOpenChange={setUserSelectOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={userSelectOpen}
+                        className="w-full justify-between font-normal"
+                      >
+                        {selectedUser ? (
+                          <div className="flex items-center gap-2 truncate">
+                            <span>{selectedUser.full_name || 'Unknown'}</span>
+                            <span className="text-muted-foreground text-xs">({selectedUser.email})</span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Select a user...</span>
+                        )}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search users by name or email..." />
+                        <CommandList>
+                          <CommandEmpty>No users found.</CommandEmpty>
+                          <CommandGroup heading="Available Users">
+                            {assignableUsers.map((profile) => (
+                              <CommandItem
+                                key={profile.id}
+                                value={`${profile.full_name || ''} ${profile.email}`}
+                                onSelect={() => {
+                                  setSelectedUserId(profile.id);
+                                  setUserSelectOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedUserId === profile.id ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                <div className="flex flex-col">
+                                  <span>{profile.full_name || 'Unknown'}</span>
+                                  <span className="text-xs text-muted-foreground">{profile.email}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <p className="text-xs text-muted-foreground">
-                    User must have signed up before they can be assigned a role.
+                    Users must sign up first before they can be assigned a role.
                   </p>
                 </div>
                 <div className="space-y-2">
