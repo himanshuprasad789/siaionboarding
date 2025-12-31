@@ -202,7 +202,8 @@ export default function TeamManagement() {
   };
 
   const getAvailableMembers = (teamId: string): StaffMemberWithDetails[] => {
-    return staffMembers.filter(m => m.team_id !== teamId);
+    // Include members with no team OR members in a different team (for reassignment)
+    return staffMembers.filter(m => m.team_id === null || m.team_id !== teamId);
   };
 
   const getRoleBadgeVariant = (role: AppRole) => {
