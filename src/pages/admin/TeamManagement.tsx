@@ -23,6 +23,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Plus, Users, Trash2, UserPlus, Loader2, Settings } from 'lucide-react';
 import { useTeams, TeamWithWorkflows } from '@/hooks/useTeams';
 import { useStaffMembers, StaffMemberWithDetails } from '@/hooks/useAdminData';
@@ -449,27 +455,62 @@ export default function TeamManagement() {
                     <div className="flex gap-2">
                       <Select 
                         value={selectedMemberByTeam[team.id] || ''} 
-                        onValueChange={(value) => setSelectedMemberByTeam(prev => ({ ...prev, [team.id]: value }))}
+                        onValueChange={(value) => {
+                          if (value) {
+                            updateMemberTeamMutation.mutate({ memberId: value, teamId: team.id });
+                            toast.success('Member added to team');
+                          }
+                        }}
                       >
                         <SelectTrigger className="flex-1">
                           <SelectValue placeholder="Add member..." />
                         </SelectTrigger>
                         <SelectContent>
-                          {availableMembers.map((member) => (
-                            <SelectItem key={member.id} value={member.id}>
-                              {member.full_name || member.email}
-                            </SelectItem>
-                          ))}
+                          {availableMembers.length === 0 ? (
+                            <div className="py-2 px-2 text-sm text-muted-foreground text-center">
+                              No available staff members
+                            </div>
+                          ) : (
+                            availableMembers.map((member) => {
+                              const role = member.roles[0]?.role;
+                              return (
+                                <SelectItem key={member.id} value={member.id}>
+                                  <span className="flex items-center gap-2">
+                                    {member.full_name || member.email}
+                                    {role && (
+                                      <Badge variant="outline" className="text-xs ml-1">
+                                        {role}
+                                      </Badge>
+                                    )}
+                                  </span>
+                                </SelectItem>
+                              );
+                            })
+                          )}
                         </SelectContent>
                       </Select>
-                      <Button 
-                        size="icon" 
-                        variant="outline"
-                        onClick={() => handleAddMember(team.id)}
-                        disabled={!selectedMemberByTeam[team.id]}
-                      >
-                        <UserPlus className="h-4 w-4" />
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button 
+                                size="icon" 
+                                variant="outline"
+                                onClick={() => handleAddMember(team.id)}
+                                disabled={!selectedMemberByTeam[team.id] || availableMembers.length === 0}
+                              >
+                                <UserPlus className="h-4 w-4" />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {availableMembers.length === 0 
+                              ? "No staff members available"
+                              : "Select a member from dropdown to add"
+                            }
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </CardContent>
                 </Card>
